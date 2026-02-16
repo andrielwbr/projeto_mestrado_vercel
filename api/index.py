@@ -1,94 +1,41 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles # <--- Importante
-from fastapi.responses import FileResponse  # <--- Importante
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
 import os
+from supabase import create_client, Client
 
 app = FastAPI()
 
-# --- Configuração CORS ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 1. Conexão com o Supabase (Lê as senhas da Vercel)
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 
-# --- CONFIGURAÇÃO DO SITE ---
-# 1. Diz onde está a pasta "static"
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-ARQUIVO_DADOS = 'dados_corridas_diarias.csv'
-API_KEY_SECRETA = "mestrado_andriel_2026"
-
-class TreinoInput(BaseModel):
-    km_treino: float
-    intensidade: int
-    horas_sono: float
-    sentiu_dor: int 
-
-async def verificar_token(x_token: str = Header(...)):
-    if x_token != API_KEY_SECRETA:
-        raise HTTPException(status_code=400, detail="Token inválido")
-
-# --- ROTA PRINCIPAL (Onde o erro estava) ---
-# Quando acessar http://192.168... entrega o index.html automaticamente
-@app.get("/")
-async def read_index():
-    return FileResponse('static/index.html')
+# 2. Modelo de dados (O que o site manda)
+class Treino(BaseModel):
+    km: float
+    tempo: float
+    calorias: float
+    esforco: int
+    clima: str
 
 @app.post("/registrar_treino")
-async def registrar_treino(treino: TreinoInput, token: str = Depends(verificar_token)):
-    # 1. Carregar CSV
-    if os.path.exists(ARQUIVO_DADOS):
-        df = pd.read_csv(ARQUIVO_DADOS)
-    else:
-        df = pd.DataFrame(columns=['km_treino', 'intensidade', 'horas_sono', 'sentiu_dor'])
-
-    # 2. Salvar novo dado
-    novo_dado = pd.DataFrame([treino.dict()])
-    df = pd.concat([df, novo_dado], ignore_index=True)
-    df.to_csv(ARQUIVO_DADOS, index=False)
-
-    # 3. Lógica da IA (simplificada para evitar erros se tiver poucos dados)
-    if len(df) < 5 or len(df['sentiu_dor'].unique()) < 2:
-        return {
-            "mensagem": "Treino Salvo! (IA coletando dados...)",
-            "acumulado_semana": 0, "sugerido_proximo": 0
+def registrar_treino(treino: Treino):
+    try:
+        # Preparar os dados
+        dados_para_salvar = {
+            "km_percorridos": treino.km,
+            "tempo_gasto": treino.tempo,
+            "calorias": treino.calorias,
+            "esforco_percebido": treino.esforco,
+            "clima": treino.clima
         }
 
-    # Calcular acumulado
-    df['acumulado_semana'] = df['km_treino'].rolling(window=7, min_periods=1).sum().fillna(0)
-    
-    # Treinar
-    X = df[['acumulado_semana', 'intensidade', 'horas_sono']]
-    y = df['sentiu_dor']
-    modelo = LogisticRegression()
-    modelo.fit(X, y)
+        # 3. ENVIAR PARA O SUPABASE (Aqui é a mágica)
+        response = supabase.table("treinos").insert(dados_para_salvar).execute()
 
-    # Prever Futuro
-    acumulado_hoje = df.iloc[-1]['acumulado_semana']
-    distancia_segura = 0
-    
-    for km_teste in range(1, 40):
-        entrada_teste = pd.DataFrame([[acumulado_hoje + km_teste, 7, 7]], 
-                                     columns=['acumulado_semana', 'intensidade', 'horas_sono'])
-        risco = modelo.predict_proba(entrada_teste)[0][1] * 100
-        if risco > 45:
-            break
-        distancia_segura = km_teste
+        # Retorna sucesso para o site
+        return {"message": "Treino salvo na Nuvem com sucesso!", "dados": response.data}
 
-    return {
-        "mensagem": "Análise Concluída",
-        "acumulado_semana": float(round(acumulado_hoje, 1)),
-        "sugerido_proximo": int(distancia_segura)
-    }
-
-
-
-
-app = app # Isso garante que a Vercel identifique o objeto FastAPI
+    except Exception as e:
+        print(f"Erro ao salvar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
