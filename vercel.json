@@ -4,7 +4,7 @@
     { "src": "static/*", "use": "@vercel/static" }
   ],
   "routes": [
-    { "source": "/registrar_treino", "dest": "api/index.py" },
-    { "source": "/(.*)", "dest": "static/index.html" }
+    { "src": "/registrar_treino", "dest": "/api/index.py" },
+    { "src": "/(.*)", "dest": "/static/index.html" }
   ]
 }
