@@ -3,130 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RunAI - Acesso</title>
+    <title>RunAI - Diagnóstico</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <style>
-        body { background: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; }
-        .card-auth { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        .hidden { display: none !important; }
+        body { background: #f8f9fa; padding: 20px; font-family: monospace; }
+        .console-log { 
+            background: #000; color: #0f0; padding: 15px; 
+            border-radius: 8px; margin-top: 20px; 
+            height: 200px; overflow-y: scroll; font-size: 12px;
+        }
+        .step { margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd; }
+        .btn-big { width: 100%; padding: 15px; font-weight: bold; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
-    <div id="loginScreen" class="card-auth">
-        <h3 class="text-center fw-bold text-primary mb-4">RunAI Coach 🔐</h3>
-
-        <div class="mb-3">
-            <label class="fw-bold small">Email</label>
-            <input type="email" id="email" class="form-control" placeholder="seu@email.com">
-        </div>
-
-        <div class="mb-4">
-            <label class="fw-bold small">Senha</label>
-            <input type="password" id="password" class="form-control" placeholder="Mínimo 6 caracteres">
-        </div>
-
-        <div class="d-grid gap-2">
-            <button id="btnEntrar" class="btn btn-primary fw-bold">ENTRAR</button>
-            <button id="btnCriar" class="btn btn-outline-secondary">CRIAR CONTA</button>
-        </div>
-
-        <p id="msgErro" class="text-center text-danger small mt-3 fw-bold"></p>
+    <h3 class="text-center fw-bold">🛠️ Modo de Diagnóstico</h3>
+    
+    <div class="step">
+        <h5>1. Teste de Botão</h5>
+        <p>Clique abaixo. Se aparecer mensagem na caixa preta, seu clique funciona.</p>
+        <button id="btnTeste" class="btn btn-warning w-100">TESTAR CLIQUE</button>
     </div>
 
-    <div id="appScreen" class="hidden container" style="max-width: 500px;">
-        <div class="card p-4 shadow-sm border-0">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="m-0 fw-bold">🏃 Novo Treino</h5>
-                <button id="btnSair" class="btn btn-sm btn-light border text-danger">Sair</button>
-            </div>
-            
-            <p class="small text-muted">Logado: <span id="userEmail" class="fw-bold text-dark">...</span></p>
+    <div class="step">
+        <h5>2. Criar Conta</h5>
+        <input type="email" id="email" class="form-control mb-2" placeholder="Email">
+        <input type="password" id="password" class="form-control mb-2" placeholder="Senha (min 6)">
+        <button id="btnCriar" class="btn btn-primary btn-big">CRIAR CONTA</button>
+    </div>
 
-            <form id="formTreino">
-                <div class="row g-2 mb-3">
-                    <div class="col-6"><input type="number" id="idade" class="form-control" placeholder="Idade" required></div>
-                    <div class="col-6">
-                        <select id="nivel" class="form-select">
-                            <option value="iniciante">Iniciante</option>
-                            <option value="avancado">Já Corro</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-2 mb-3">
-                    <div class="col-6"><input type="number" id="km" class="form-control" placeholder="KM" step="0.1" required></div>
-                    <div class="col-6"><input type="number" id="tempo" class="form-control" placeholder="Min" required></div>
-                </div>
-                <label>Esforço (1-10): <span id="valEsforco" class="text-primary fw-bold">5</span></label>
-                <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
-                
-                <button type="submit" id="btnEnviar" class="btn btn-dark w-100 mt-3 fw-bold">ANALISAR</button>
-            </form>
-
-            <div id="resultado" class="mt-4 p-3 bg-light rounded border hidden">
-                <h5 id="statusIA" class="fw-bold">...</h5>
-                <p id="textoIA" class="small text-muted">...</p>
-                <div class="alert alert-info py-2 small fw-bold mb-0" id="dicaIA">...</div>
-            </div>
-        </div>
+    <div class="console-log" id="telaConsole">
+        > Aguardando sistema iniciar...<br>
     </div>
 
 <script>
+    // --- FUNÇÃO PARA ESCREVER NA TELA ---
+    function log(msg) {
+        const tela = document.getElementById('telaConsole');
+        const hora = new Date().toLocaleTimeString();
+        tela.innerHTML += `[${hora}] ${msg}<br>`;
+        tela.scrollTop = tela.scrollHeight; // Rola para baixo
+        console.log(msg);
+    }
+
     // --- CONFIGURAÇÃO ---
     const SUPABASE_URL = 'https://iqdllutxyqfgqfafxrrv.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_PJ3S6xPzQq_YcpQPAJD0Lw_zOjJZAph'; // Tentei a sua chave nova
-    
-    // Variáveis Globais
+    const SUPABASE_KEY = 'sb_publishable_PJ3S6xPzQq_YcpQPAJD0Lw_zOjJZAph';
+
     let supabase;
-    let usuarioID = null;
 
-    // --- INICIALIZAÇÃO SEGURA ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            // Tenta iniciar o Supabase
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log("Supabase iniciado com sucesso!");
-            
-            // Verifica sessão atual
-            verificarSessao();
+    // --- AO CARREGAR A PÁGINA ---
+    window.onload = function() {
+        log("1. Página carregada.");
 
-            // --- LIGA OS BOTÕES (Agora é seguro clicar) ---
-            document.getElementById('btnEntrar').onclick = fazerLogin;
-            document.getElementById('btnCriar').onclick = criarConta;
-            document.getElementById('btnSair').onclick = sair;
-            document.getElementById('formTreino').onsubmit = enviarTreino;
-
-        } catch (erro) {
-            alert("ERRO CRÍTICO: A biblioteca do Supabase não carregou. Verifique sua conexão.");
-            console.error(erro);
+        // Verifica se a biblioteca baixou
+        if (typeof window.supabase === 'undefined') {
+            log("❌ ERRO CRÍTICO: Biblioteca Supabase NÃO carregou.");
+            log("Verifique sua internet ou bloqueadores de anúncio.");
+            return;
         }
-    });
 
-    // --- FUNÇÕES ---
+        log("2. Biblioteca detectada. Iniciando Supabase...");
+        
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            log("✅ Supabase iniciado com sucesso!");
+        } catch (e) {
+            log("❌ Erro ao iniciar Supabase: " + e.message);
+        }
+
+        // Ativa botões manualmente
+        document.getElementById('btnTeste').addEventListener('click', function() {
+            log("✅ O BOTÃO ESTÁ FUNCIONANDO!");
+        });
+
+        document.getElementById('btnCriar').addEventListener('click', criarConta);
+    };
+
+    // --- FUNÇÃO DE CRIAR CONTA ---
     async function criarConta() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        const msg = document.getElementById('msgErro');
 
-        if (!email || !password) return msg.innerText = "⚠️ Preencha email e senha.";
-        if (password.length < 6) return msg.innerText = "⚠️ Senha muito curta (min 6).";
+        log(`Tentando criar conta para: ${email}`);
 
-        msg.innerText = "Criando conta...";
-        
+        if (!email || !password) {
+            log("⚠️ Erro: Email ou senha vazios.");
+            return;
+        }
+
         try {
-            const { data, error } = await supabase.auth.signUp({ email, password });
-            if (error) throw error;
-            alert("✅ Conta Criada! Você já está logado.");
-            verificarSessao();
+            const { data, error } = await supabase.auth.signUp({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                log("❌ Erro do Supabase: " + error.message);
+            } else {
+                log("🏆 SUCESSO! Conta criada. ID: " + (data.user?.id || "Pendente"));
+                log("Verifique seu email (se tiver confirmação) ou tente logar.");
+            }
+
         } catch (e) {
-            msg.innerText = "Erro: " + e.message;
+            log("❌ Erro de conexão/código: " + e.message);
         }
     }
+</script>
 
-    async function fazerLogin() {
-        const email = document.getElementById('email').value;
-        const password
+</body>
+</html>
