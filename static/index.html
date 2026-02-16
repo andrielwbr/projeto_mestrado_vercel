@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <style>
         /* --- ESTILO COLORLIB V3 --- */
@@ -21,50 +20,53 @@
             align-items: center;
             justify-content: center;
             
-            /* FOTO DE FUNDO + GRADIENTE ROXO/ROSA */
+            /* FOTO ESCOLHIDA + FILTRO ROXO/ROSA */
             background: linear-gradient(rgba(164, 69, 178, 0.85), rgba(250, 66, 153, 0.85)), 
-                        url('https://images.unsplash.com/photo-1452626038306-369663ca05bb?q=80&w=1920&auto=format&fit=crop');
+                        url('https://colmeia.am.br/wp-content/uploads/2025/08/corrida-de-rua-1.jpg');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
         }
 
-        .card-custom {
+        .main-card {
             background: #ffffff;
             border-radius: 15px;
             padding: 40px;
             width: 100%;
-            max-width: 450px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            max-width: 450px; /* Levemente mais estreito para elegância */
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
             position: relative;
-            overflow: hidden;
         }
 
-        /* Título com a cor do tema */
-        h3.brand-title {
+        h3.title {
             color: #333;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            text-align: center;
             margin-bottom: 30px;
         }
 
-        /* Campos de Input Estilizados */
-        .form-control {
-            background: #f7f7f7;
+        /* Inputs Arredondados */
+        .form-control, .form-select {
+            background: #e6e6e6;
             border: none;
             height: 50px;
-            padding-left: 20px;
             border-radius: 25px;
-            margin-bottom: 20px;
+            padding-left: 20px;
             font-size: 14px;
+            color: #555;
+            margin-bottom: 15px;
+            transition: 0.3s;
         }
-        .form-control:focus {
+        
+        .form-control:focus, .form-select:focus {
             background: #fff;
-            box-shadow: 0 0 0 2px #fa4299;
+            box-shadow: 0 0 0 2px #d63384; 
+            color: #333;
         }
 
-        /* Botão Gradiente Colorlib */
+        /* Botão Gradiente */
         .btn-gradient {
             background: linear-gradient(to right, #a445b2, #fa4299, #a445b2);
             background-size: 200% auto;
@@ -75,215 +77,127 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
-            transition: 0.5s;
             width: 100%;
-            box-shadow: 0 10px 20px rgba(164, 69, 178, 0.3);
+            box-shadow: 0 5px 20px rgba(164, 69, 178, 0.4);
+            transition: 0.5s;
+            margin-top: 15px;
+            cursor: pointer;
         }
         .btn-gradient:hover {
-            background-position: right center; /* Efeito de movimento */
-            color: #fff;
+            background-position: right center;
             transform: translateY(-2px);
+            color: white;
         }
 
-        /* Botão Secundário (Criar Conta) */
-        .btn-outline-custom {
-            background: transparent;
-            border: 2px solid #eeeeee;
-            color: #888;
-            height: 50px;
-            border-radius: 25px;
-            font-weight: 600;
-            transition: 0.3s;
-        }
-        .btn-outline-custom:hover {
-            border-color: #a445b2;
-            color: #a445b2;
-        }
-
-        /* Status Bar */
-        .status-bar { 
-            position: fixed; top: 0; left: 0; width: 100%; 
-            background: rgba(0,0,0,0.8); color: white; padding: 8px; 
-            text-align: center; font-size: 12px; font-weight: bold;
-            z-index: 9999; backdrop-filter: blur(5px);
-        }
-        .status-ok { background: rgba(22, 163, 74, 0.9); }
-        .status-erro { background: rgba(220, 38, 38, 0.9); }
-
-        .hidden { display: none !important; }
+        label { font-weight: 600; font-size: 11px; color: #888; margin-left: 15px; margin-bottom: 2px; text-transform: uppercase; display: block; }
         
-        /* Ícone de input */
-        .input-group-text {
-            background: transparent;
-            border: none;
-            position: absolute;
-            right: 15px;
-            top: 15px;
-            color: #999;
-            z-index: 10;
-        }
-        .input-wrapper { position: relative; }
-        
-        /* Cards de Resultado */
-        .result-card {
+        /* Resultados */
+        .result-box {
             background: #f8f9fa;
             border-radius: 15px;
             padding: 20px;
-            margin-top: 20px;
+            margin-top: 25px;
+            display: none; 
             border-left: 5px solid #a445b2;
+            animation: fadeIn 0.6s;
         }
-        .cal-card {
+        
+        .cal-box {
             background: linear-gradient(45deg, #a445b2, #fa4299);
             color: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 15px;
+            padding: 15px;
+            border-radius: 12px;
             text-align: center;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(164, 69, 178, 0.3);
         }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div id="sysMonitor" class="status-bar">⌛ Inicializando RunAI...</div>
-
-    <div id="loginScreen" class="card-custom">
-        <div class="text-center">
-            <div style="font-size: 40px; color: #a445b2; margin-bottom: 10px;">
-                <i class="fas fa-running"></i>
-            </div>
-            <h3 class="brand-title">RunAI Coach</h3>
-        </div>
-
-        <div class="input-wrapper">
-            <input type="text" id="user_id" class="form-control" placeholder="Seu Nickname (ex: andriel)" required>
-            <span class="input-group-text"><i class="fas fa-user"></i></span>
-        </div>
-
-        <div class="d-grid gap-3 mt-4">
-            <button onclick="entrarDireto()" id="btnEntrar" class="btn-gradient">
-                ACESSAR TREINOS
-            </button>
-        </div>
-        
-        <p class="text-center mt-4 text-muted small">
-            Inteligência Artificial para Prevenção de Lesões
-        </p>
+<div class="main-card">
+    <div class="text-center mb-2">
+        <i class="fas fa-running fa-2x" style="color: #fa4299;"></i>
     </div>
+    <h3 class="title">RunAI Coach</h3>
 
-    <div id="appScreen" class="hidden card-custom">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="m-0 fw-bold" style="color: #333;">Novo Treino</h4>
-            <button onclick="sair()" class="btn btn-sm btn-outline-danger" style="border-radius: 20px;">Sair</button>
-        </div>
+    <form onsubmit="event.preventDefault(); enviar();">
         
-        <p class="small text-muted mb-4">Olá, <span id="userDisplay" class="fw-bold" style="color: #a445b2;">Atleta</span></p>
+        <div class="mb-3">
+            <label>Seu Nickname</label>
+            <input type="text" id="user_id" class="form-control" placeholder="Ex: Andriel" required>
+        </div>
 
-        <form id="formTreino">
-            <div class="row g-2 mb-3">
-                <div class="col-6"><input type="number" id="idade" class="form-control" placeholder="Idade" required></div>
-                <div class="col-6">
-                    <select id="nivel" class="form-control" style="padding-top:0; padding-bottom:0;">
-                        <option value="iniciante">Iniciante</option>
-                        <option value="avancado">Já Corro</option>
-                    </select>
-                </div>
+        <div class="row g-2">
+            <div class="col-6">
+                <label>Idade</label>
+                <input type="number" id="idade" class="form-control" placeholder="Anos" required>
             </div>
-            
-            <div class="row g-2 mb-3">
-                <div class="col-6"><input type="number" id="km" class="form-control" placeholder="KM" step="0.1" required></div>
-                <div class="col-6"><input type="number" id="tempo" class="form-control" placeholder="Minutos" required></div>
+            <div class="col-6">
+                <label>Nível</label>
+                <select id="nivel" class="form-select">
+                    <option value="iniciante">Iniciante</option>
+                    <option value="avancado">Já corro</option>
+                </select>
             </div>
+        </div>
 
-            <div class="mb-3 input-wrapper">
-                <input type="number" id="calorias" class="form-control" placeholder="Calorias Gastas (Kcal)" required>
-                <span class="input-group-text"><i class="fas fa-fire"></i></span>
+        <div class="row g-2">
+            <div class="col-6">
+                <label>Distância (KM)</label>
+                <input type="number" id="km" class="form-control" placeholder="0.0" step="0.1" required>
             </div>
-
-            <label class="small fw-bold text-muted">Esforço (1-10): <span id="valEsforco" style="color: #fa4299;">5</span></label>
-            <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
-            
-            <button type="submit" id="btnEnviar" class="btn-gradient mt-4">ANALISAR PERFORMANCE</button>
-        </form>
-
-        <div id="resultado" class="hidden">
-            <div class="result-card">
-                <h5 id="statusIA" class="fw-bold text-uppercase mb-2"></h5>
-                <p id="textoIA" class="small text-muted mb-0"></p>
-                <div class="mt-2 fw-bold small text-dark" id="acaoIA"></div>
+            <div class="col-6">
+                <label>Tempo (Min)</label>
+                <input type="number" id="tempo" class="form-control" placeholder="0" required>
             </div>
+        </div>
 
-            <div class="cal-card shadow">
-                <small class="text-uppercase fw-bold" style="opacity: 0.8">Próxima Meta & Gasto Estimado</small>
-                <div id="proximoIA" class="fw-bold fs-5 mt-1"></div>
-            </div>
+        <div class="mb-3">
+            <label style="color: #d63384;">🔥 Calorias Gastas</label>
+            <input type="number" id="calorias" class="form-control" placeholder="Kcal totais" required>
+        </div>
+
+        <label>Sensação de Esforço: <span id="valEsforco" style="color: #fa4299; font-weight:bold;">5</span></label>
+        <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
+
+        <button type="submit" id="btnEnviar" class="btn-gradient">ANALISAR PERFORMANCE</button>
+    </form>
+
+    <div id="resultado" class="result-box">
+        <h6 id="statusIA" class="fw-bold text-uppercase mb-2" style="letter-spacing: 1px;"></h6>
+        <p id="textoIA" class="small text-muted mb-0" style="line-height: 1.4;"></p>
+        
+        <div class="mt-3 small fw-bold text-dark border-top pt-2" id="acaoIA"></div>
+
+        <div class="cal-box">
+            <small class="text-uppercase fw-bold" style="opacity: 0.9; font-size: 10px; letter-spacing: 1px;">Próximo Treino & Gasto</small>
+            <div id="proximoIA" class="fw-bold fs-6 mt-1"></div>
         </div>
     </div>
+</div>
 
 <script>
-    // --- CONFIGURAÇÃO ---
-    const SUPABASE_URL = 'https://iqdllutxyqfgqfafxrrv.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZGxsdXR4eXFmZ3FmYWZ4cnJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDUyOTEsImV4cCI6MjA4Njc4MTI5MX0.g_gQlasCrfaQqYwATWhtaLrOGn00vv5etBecBBuMiKg';
-
-    let supabase;
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const monitor = document.getElementById('sysMonitor');
-        if (typeof window.supabase === 'undefined') {
-            monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ Erro de Rede: Supabase bloqueado.';
-            return;
-        }
-        try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            monitor.className = 'status-bar status-ok';
-            monitor.innerText = '✅ Sistema Online';
-            
-            // Verifica se já tem usuário salvo
-            const savedUser = localStorage.getItem('run_user');
-            if(savedUser) {
-                document.getElementById('user_id').value = savedUser;
-                // Opcional: Entrar direto se quiser
-            }
-            if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
-
-            // Listeners
-            document.getElementById('formTreino').addEventListener('submit', enviarTreino);
-
-        } catch (e) {
-            monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ Erro: ' + e.message;
-        }
-    });
-
-    function entrarDireto() {
-        const user = document.getElementById('user_id').value.trim();
-        if(!user) return alert("Digite um nickname para continuar.");
-        
-        localStorage.setItem('run_user', user);
-        
-        // Troca de tela com animação simples (via CSS classes)
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('appScreen').classList.remove('hidden');
-        document.getElementById('userDisplay').innerText = user;
+    // Recupera dados salvos
+    window.onload = () => {
+        if(localStorage.getItem('run_user')) document.getElementById('user_id').value = localStorage.getItem('run_user');
+        if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
     }
 
-    function sair() {
-        localStorage.removeItem('run_user');
-        window.location.reload();
-    }
-
-    async function enviarTreino(e) {
-        e.preventDefault();
+    async function enviar() {
         const btn = document.getElementById('btnEnviar');
-        btn.innerText = "Processando...";
+        btn.innerText = "CALCULANDO...";
         btn.disabled = true;
         btn.style.opacity = "0.7";
 
-        const user = localStorage.getItem('run_user');
+        // Salva para agilizar o próximo uso
+        localStorage.setItem('run_user', document.getElementById('user_id').value);
         localStorage.setItem('run_age', document.getElementById('idade').value);
 
         const dados = {
-            user_id: user,
+            user_id: document.getElementById('user_id').value,
             idade: parseInt(document.getElementById('idade').value),
             nivel: document.getElementById('nivel').value,
             km: parseFloat(document.getElementById('km').value),
@@ -301,21 +215,25 @@
             });
             const res = await req.json();
             
-            document.getElementById('resultado').classList.remove('hidden');
-            
-            // Cores do Status
+            // Exibe Resultado
+            const divRes = document.getElementById('resultado');
+            divRes.style.display = 'block';
+            divRes.scrollIntoView({behavior: 'smooth'});
+
+            // Cores inteligentes
             const statusElem = document.getElementById('statusIA');
             statusElem.innerText = res.analise.status;
-            if(res.analise.status.includes("RISCO")) statusElem.style.color = "#dc2626";
-            else if(res.analise.status.includes("IDEAL")) statusElem.style.color = "#16a34a";
-            else statusElem.style.color = "#a445b2"; // Roxo do tema
+            
+            if(res.analise.status.includes("RISCO")) statusElem.style.color = "#dc2626"; // Vermelho
+            else if(res.analise.status.includes("IDEAL")) statusElem.style.color = "#16a34a"; // Verde
+            else statusElem.style.color = "#a445b2"; // Roxo tema
 
             document.getElementById('textoIA').innerText = res.analise.mensagem;
-            document.getElementById('acaoIA').innerText = "Recomendação: " + res.analise.acao;
+            document.getElementById('acaoIA').innerText = "RECOMENDAÇÃO: " + res.analise.acao;
             document.getElementById('proximoIA').innerText = res.analise.proximo_treino;
 
-        } catch (err) {
-            alert("Erro: " + err);
+        } catch (e) {
+            alert("Erro de conexão: " + e);
         } finally {
             btn.innerText = "ANALISAR PERFORMANCE";
             btn.disabled = false;
