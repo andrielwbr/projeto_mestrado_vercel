@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import os
 from supabase import create_client, Client
-
+# NADA DE PANDAS OU SKLEARN AQUI POR ENQUANTO
 app = FastAPI()
 
 # 1. Conexão com o Supabase (Lê as senhas da Vercel)
