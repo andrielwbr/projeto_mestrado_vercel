@@ -2,8 +2,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import os
 from supabase import create_client, Client
-from datetime import datetime, timedelta
-import math
 
 app = FastAPI()
 
@@ -13,6 +11,7 @@ key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
 class Treino(BaseModel):
+    user_id: str  # <--- NOVO CAMPO OBRIGATÓRIO
     km: float
     tempo: float
     calorias: float
@@ -21,45 +20,37 @@ class Treino(BaseModel):
 
 # --- INTELIGÊNCIA ARTIFICIAL (Lógica ACWR) ---
 def calcular_risco_lesao(novo_treino, historico):
-    """
-    Calcula o risco baseado na Razão Aguda:Crônica (ACWR).
-    Se você aumentar o volume muito rápido (> 1.5x), o risco explode.
-    """
-    # 1. Adiciona o treino atual ao histórico para cálculo
-    historico_recente = [t for t in historico] # Copia lista
+    historico_recente = [t for t in historico]
     
-    # 2. Calcula Carga Aguda (Últimos 7 dias - Fadiga)
-    # Consideramos o treino de hoje + passados
+    # Carga Aguda (Treino atual + últimos 7 dias)
     carga_aguda = novo_treino.km
-    for t in historico_recente[:6]: # Pega até 6 treinos anteriores
+    for t in historico_recente[:6]: 
         carga_aguda += t.get('km_percorridos', 0)
 
-    # 3. Calcula Carga Crônica (Média das últimas 4 semanas - Condicionamento)
-    # Se tiver pouco histórico, assumimos uma base mínima para não dividir por zero
+    # Carga Crônica (Média das últimas 4 semanas)
     total_historico = sum(t.get('km_percorridos', 0) for t in historico_recente)
     carga_cronica = (total_historico + novo_treino.km) / 4 
     
-    if carga_cronica == 0: carga_cronica = 1 # Evitar divisão por zero
+    if carga_cronica == 0: carga_cronica = 1
 
     ratio = carga_aguda / carga_cronica
 
-    # 4. Definição do Risco e Sugestão
     if ratio > 1.5:
         status = "🔴 ALTO RISCO"
-        msg = "Cuidado! Você aumentou o volume muito rápido."
-        sugestao = f"Descanse 2 dias ou faça no máximo {novo_treino.km * 0.5:.1f} km leve."
+        msg = "Cuidado! Aumento brusco de volume."
+        sugestao = f"Descanse. Teto seguro: {novo_treino.km * 0.5:.1f} km."
     elif ratio > 1.2:
         status = "🟡 MODERADO"
-        msg = "Zona de atenção. Seu corpo está sentindo a carga."
-        sugestao = f"Mantenha o volume. Próximo treino: {novo_treino.km:.1f} km."
+        msg = "Zona de atenção."
+        sugestao = f"Mantenha o volume atual."
     elif ratio < 0.8:
         status = "🟢 BAIXO (Destreinando)"
-        msg = "Você está treinando menos do que aguenta."
-        sugestao = f"Pode aumentar. Tente {novo_treino.km * 1.1:.1f} km na próxima."
+        msg = "Volume baixo para sua capacidade."
+        sugestao = f"Pode subir para {novo_treino.km * 1.1:.1f} km."
     else:
         status = "🟢 ZONA IDEAL"
-        msg = "Evolução perfeita! Risco de lesão baixo."
-        sugestao = f"Continue assim. Próximo alvo: {novo_treino.km * 1.05:.1f} km."
+        msg = "Evolução consistente."
+        sugestao = f"Próximo alvo: {novo_treino.km * 1.05:.1f} km."
 
     return {
         "status": status,
@@ -69,26 +60,25 @@ def calcular_risco_lesao(novo_treino, historico):
         "acumulado_semana": round(carga_aguda, 1)
     }
 
-# --- ROTA PRINCIPAL ---
 @app.post("/registrar_treino")
 def registrar_treino(treino: Treino):
-    if not url or not key:
-        raise HTTPException(status_code=500, detail="Erro de Configuração no Servidor")
-
     try:
-        # 1. Salvar no Banco
+        # 1. Salvar no Banco (COM O USER_ID)
         dados_novos = {
+            "user_id": treino.user_id, # <--- Carimba o dono
             "km_percorridos": treino.km,
             "tempo_gasto": treino.tempo,
             "calorias": treino.calorias,
             "esforco_percebido": treino.esforco,
             "clima": treino.clima
         }
-        res_insert = supabase.table("treinos").insert(dados_novos).execute()
+        supabase.table("treinos").insert(dados_novos).execute()
 
-        # 2. Buscar Histórico para Análise (Últimos 28 registros)
+        # 2. Buscar Histórico FILTRADO (Segurança de Dados)
+        # O .eq("user_id", treino.user_id) garante que eu só veja OS MEUS dados
         res_history = supabase.table("treinos")\
             .select("km_percorridos, data_hora")\
+            .eq("user_id", treino.user_id)\
             .order("data_hora", desc=True)\
             .limit(28)\
             .execute()
@@ -98,10 +88,7 @@ def registrar_treino(treino: Treino):
         # 3. Rodar a IA
         analise = calcular_risco_lesao(treino, historico)
 
-        return {
-            "message": "Treino salvo!",
-            "analise": analise
-        }
+        return {"message": "Salvo", "analise": analise}
 
     except Exception as e:
         print(f"Erro: {e}")
