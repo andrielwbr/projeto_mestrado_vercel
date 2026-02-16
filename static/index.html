@@ -3,96 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-    <title>RunAI Coach</title>
+    <title>RunAI - Acesso Seguro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #334155; }
-        .main-card { max-width: 500px; margin: 20px auto; background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
-        .header { background: #0f172a; color: white; padding: 25px; text-align: center; }
-        .section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; font-weight: 700; margin-bottom: 15px; margin-top: 10px; }
-        .form-control, .form-select { border-radius: 10px; padding: 12px; border: 1px solid #e2e8f0; }
-        .btn-run { background: #2563eb; color: white; width: 100%; padding: 15px; border-radius: 12px; font-weight: 600; border: none; margin-top: 20px; }
-        .btn-run:hover { background: #1d4ed8; }
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; height: 100vh; display: flex; align-items: center; justify-content: center; }
         
-        /* Card de Resultado */
+        /* TELA DE LOGIN */
+        .auth-container { width: 100%; max-width: 400px; padding: 20px; }
+        .auth-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .brand { color: #2563eb; font-weight: 800; font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
+        
+        /* TELA DO APP (Escondida no início) */
+        .app-wrapper { display: none; width: 100%; max-width: 500px; padding: 20px; height: 100%; overflow-y: auto; }
+        .main-card { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+        .header { background: #0f172a; color: white; padding: 25px; text-align: center; position: relative; }
+        .logout-btn { position: absolute; top: 15px; right: 15px; font-size: 0.8rem; background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+        
+        /* RESULTADO */
         .prescription-card { background: #fff; border-radius: 15px; border: 1px solid #e2e8f0; padding: 20px; margin-top: 20px; display: none; animation: slideUp 0.5s; }
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-bottom: 10px; }
-        
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
-<div class="main-card">
-    <div class="header">
-        <h2 class="m-0 fw-bold">RunAI Coach</h2>
-        <small style="opacity: 0.8">Inteligência Artificial Esportiva</small>
+<div id="authScreen" class="auth-container">
+    <div class="auth-card">
+        <div class="brand">RunAI 🔐</div>
+        <h5 class="text-center mb-4 text-muted">Acesso ao Treinador</h5>
+        
+        <div class="form-floating mb-3">
+            <input type="email" class="form-control" id="email" placeholder="nome@exemplo.com">
+            <label>Email</label>
+        </div>
+        <div class="form-floating mb-3">
+            <input type="password" class="form-control" id="password" placeholder="Senha">
+            <label>Senha</label>
+        </div>
+
+        <button onclick="fazerLogin()" class="btn btn-primary w-100 py-3 fw-bold mb-2">ENTRAR</button>
+        <button onclick="criarConta()" class="btn btn-outline-secondary w-100 py-2 btn-sm">Criar nova conta</button>
+        
+        <div id="authMsg" class="text-center mt-3 small text-danger"></div>
     </div>
+</div>
 
-    <div class="p-4">
-        <form onsubmit="event.preventDefault(); enviarTreino();">
-            
-            <div class="section-title">👤 Perfil do Atleta</div>
-            <div class="row g-2 mb-3">
-                <div class="col-12">
-                    <input type="text" class="form-control" id="user_id" placeholder="Seu Nome / Apelido" required>
-                </div>
-                <div class="col-6">
-                    <input type="number" class="form-control" id="idade" placeholder="Idade" required>
-                </div>
-                <div class="col-6">
-                    <select class="form-select" id="nivel">
-                        <option value="iniciante">Iniciante</option>
-                        <option value="avancado">Já corro</option>
-                    </select>
-                </div>
-            </div>
+<div id="appScreen" class="app-wrapper">
+    <div class="main-card">
+        <div class="header">
+            <button onclick="sair()" class="logout-btn">Sair 🚪</button>
+            <h2 class="m-0 fw-bold">RunAI Coach</h2>
+            <small id="userDisplay" style="opacity: 0.8">Olá, Atleta</small>
+        </div>
 
-            <div class="section-title">🏃 Treino de Hoje</div>
-            <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <div class="form-floating">
-                        <input type="number" class="form-control" id="km" placeholder="KM" step="0.1" required>
-                        <label>Distância (km)</label>
+        <div class="p-4">
+            <form onsubmit="event.preventDefault(); enviarTreino();">
+                
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <input type="number" class="form-control" id="idade" placeholder="Sua Idade" required>
+                    </div>
+                    <div class="col-6">
+                        <select class="form-select" id="nivel">
+                            <option value="iniciante">Sou Iniciante</option>
+                            <option value="avancado">Já Corro</option>
+                        </select>
                     </div>
                 </div>
-                <div class="col-6">
-                    <div class="form-floating">
-                        <input type="number" class="form-control" id="tempo" placeholder="Min" required>
-                        <label>Tempo (min)</label>
+
+                <hr class="my-4">
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="form-floating">
+                            <input type="number" class="form-control" id="km" step="0.1" required>
+                            <label>Distância (km)</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-floating">
+                            <input type="number" class="form-control" id="tempo" required>
+                            <label>Tempo (min)</label>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <label class="form-label d-flex justify-content-between small text-muted fw-bold">
-                <span>INTENSIDADE (PERCEPÇÃO)</span>
-                <span id="valorEsforco" class="text-primary">5</span>
-            </label>
-            <input type="range" class="form-range" min="1" max="10" id="esforco" value="5" oninput="document.getElementById('valorEsforco').innerText = this.value">
+                <label class="form-label d-flex justify-content-between small text-muted fw-bold">
+                    <span>INTENSIDADE (PERCEPÇÃO)</span>
+                    <span id="valorEsforco" class="text-primary">5</span>
+                </label>
+                <input type="range" class="form-range" min="1" max="10" id="esforco" value="5" oninput="document.getElementById('valorEsforco').innerText = this.value">
 
-            <input type="hidden" id="calorias" value="0">
-            <input type="hidden" id="clima" value="Nublado">
+                <button type="submit" class="btn btn-dark w-100 py-3 mt-3 fw-bold" id="btnEnviar">ANALISAR PERFORMANCE</button>
+            </form>
 
-            <button type="submit" class="btn-run" id="btnEnviar">ANALISAR PERFORMANCE</button>
-        </form>
-
-        <div id="resultado" class="prescription-card">
-            <div id="statusBadge" class="status-badge" style="background: #dcfce7; color: #166534">🟢 ZONA IDEAL</div>
-            
-            <h5 class="fw-bold mb-2">Análise Técnica</h5>
-            <p id="msgAnalise" class="text-muted small">Sua carga está dentro do planejado.</p>
-            
-            <hr>
-            
-            <div class="row text-center mt-3">
-                <div class="col-6 border-end">
-                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem">Recomendação</small>
-                    <div id="acaoRecomendada" class="fw-bold text-dark mt-1">Descanso 24h</div>
-                </div>
-                <div class="col-6">
-                    <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem">Próximo Treino</small>
-                    <div id="proximoTreino" class="fw-bold text-primary mt-1">5km Leve</div>
+            <div id="resultado" class="prescription-card">
+                <div id="statusBadge" class="status-badge"></div>
+                <h5 class="fw-bold mb-2">Análise Técnica</h5>
+                <p id="msgAnalise" class="text-muted small"></p>
+                <hr>
+                <div class="row text-center mt-3">
+                    <div class="col-6 border-end">
+                        <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem">Ação</small>
+                        <div id="acaoRecomendada" class="fw-bold text-dark mt-1"></div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem">Próximo</small>
+                        <div id="proximoTreino" class="fw-bold text-primary mt-1"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -100,39 +121,89 @@
 </div>
 
 <script>
-    // Carrega dados salvos
-    window.onload = () => {
-        if(localStorage.getItem('runai_user')) document.getElementById('user_id').value = localStorage.getItem('runai_user');
+    // --- CONFIGURAÇÃO DE SEGURANÇA ---
+    // COPIE E COLE AQUI AS MESMAS CHAVES QUE VOCÊ COLOCOU NA VERCEL
+    const SUPABASE_URL = 'https://SEU_PROJETO.supabase.co'; // <--- TROQUE AQUI
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5c...';    // <--- TROQUE PELA CHAVE ANON/PUBLIC AQUI
+    
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let usuarioAtual = null;
+
+    // --- LÓGICA DE LOGIN ---
+    async function fazerLogin() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+            document.getElementById('authMsg').innerText = "Erro: " + error.message;
+        } else {
+            entrarNoApp(data.user);
+        }
+    }
+
+    async function criarConta() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        
+        if (error) {
+            document.getElementById('authMsg').innerText = "Erro: " + error.message;
+        } else {
+            alert("Conta criada! Verifique se já pode logar.");
+            fazerLogin(); // Tenta logar direto
+        }
+    }
+
+    async function sair() {
+        await supabase.auth.signOut();
+        window.location.reload();
+    }
+
+    // Verifica se já tem sessão ativa ao abrir
+    window.onload = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            entrarNoApp(session.user);
+        }
+        
+        // Recupera perfil local
         if(localStorage.getItem('runai_age')) document.getElementById('idade').value = localStorage.getItem('runai_age');
         if(localStorage.getItem('runai_level')) document.getElementById('nivel').value = localStorage.getItem('runai_level');
     };
 
+    function entrarNoApp(user) {
+        usuarioAtual = user;
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+        document.getElementById('body').style.alignItems = 'flex-start'; // Ajuste layout
+        document.getElementById('userDisplay').innerText = user.email;
+    }
+
+    // --- ENVIO DO TREINO ---
     async function enviarTreino() {
+        if (!usuarioAtual) return alert("Você precisa estar logado!");
+
         const btn = document.getElementById('btnEnviar');
         const resultadoDiv = document.getElementById('resultado');
-        
-        btn.innerText = "Calculando Prescrição...";
+        btn.innerText = "Processando...";
         btn.disabled = true;
-        resultadoDiv.style.display = 'none';
 
-        // Salva perfil
-        const user = document.getElementById('user_id').value;
-        const idade = document.getElementById('idade').value;
-        const nivel = document.getElementById('nivel').value;
-        
-        localStorage.setItem('runai_user', user);
-        localStorage.setItem('runai_age', idade);
-        localStorage.setItem('runai_level', nivel);
+        // Salva perfil localmente para facilitar
+        localStorage.setItem('runai_age', document.getElementById('idade').value);
+        localStorage.setItem('runai_level', document.getElementById('nivel').value);
 
         const dados = {
-            user_id: user,
-            idade: parseInt(idade),
-            nivel: nivel,
+            user_id: usuarioAtual.id, // USA O ID SEGURO DO SUPABASE (UUID)
+            idade: parseInt(document.getElementById('idade').value),
+            nivel: document.getElementById('nivel').value,
             km: parseFloat(document.getElementById('km').value),
             tempo: parseFloat(document.getElementById('tempo').value),
-            calorias: 0, // Estimativa futura
+            calorias: 0, 
             esforco: parseInt(document.getElementById('esforco').value),
-            clima: "Nublado"
+            clima: "Indefinido"
         };
 
         try {
@@ -141,12 +212,10 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(dados)
             });
-            
             const res = await req.json();
             mostrarPrescricao(res.analise);
-
         } catch (e) {
-            alert("Erro de conexão: " + e);
+            alert("Erro: " + e);
         } finally {
             btn.innerText = "ANALISAR PERFORMANCE";
             btn.disabled = false;
@@ -157,16 +226,14 @@
         const div = document.getElementById('resultado');
         const badge = document.getElementById('statusBadge');
         
-        // Cores Dinâmicas
-        if(data.status.includes("RISCO")) {
-            badge.style.background = "#fee2e2"; badge.style.color = "#991b1b";
-        } else if(data.status.includes("BAIXA")) {
-            badge.style.background = "#fef3c7"; badge.style.color = "#92400e";
-        } else {
-            badge.style.background = "#dcfce7"; badge.style.color = "#166534";
-        }
+        let corBg = "#dcfce7", corTxt = "#166534";
+        if(data.status.includes("RISCO")) { corBg = "#fee2e2"; corTxt = "#991b1b"; }
+        else if(data.status.includes("BAIXA")) { corBg = "#fef3c7"; corTxt = "#92400e"; }
 
+        badge.style.background = corBg; 
+        badge.style.color = corTxt;
         badge.innerText = data.status;
+
         document.getElementById('msgAnalise').innerText = data.mensagem;
         document.getElementById('acaoRecomendada').innerText = data.acao;
         document.getElementById('proximoTreino').innerText = data.proximo_treino;
@@ -175,6 +242,5 @@
         div.scrollIntoView({behavior: 'smooth'});
     }
 </script>
-
 </body>
 </html>
