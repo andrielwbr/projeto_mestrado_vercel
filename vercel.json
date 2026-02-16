@@ -1,0 +1,10 @@
+{
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python" },
+    { "src": "static/*", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "source": "/registrar_treino", "dest": "api/index.py" },
+    { "source": "/(.*)", "dest": "static/index.html" }
+  ]
+}

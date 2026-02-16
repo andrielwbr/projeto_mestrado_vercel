@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>RunAI - Performance & Saúde</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* --- ESTILO PROFISSIONAL (App-Like) --- */
+        :root {
+            --primary-color: #2563eb; /* Azul Royal Moderno */
+            --accent-color: #10b981;  /* Verde Sucesso */
+            --bg-color: #f3f4f6;      /* Cinza muito claro */
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: #1f2937;
+            padding-bottom: 40px;
+        }
+
+        /* O Cartão principal que parece um App */
+        .app-container {
+            max-width: 480px; /* Tamanho de um celular grande */
+            margin: 20px auto;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .app-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
+        .app-header p { opacity: 0.9; font-size: 0.9rem; margin-top: 5px; font-weight: 300; }
+
+        .app-body { padding: 25px; }
+
+        /* Inputs Estilizados (Google Style) */
+        .form-floating > .form-control {
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            height: 60px;
+        }
+        .form-floating > .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Slider de Intensidade Personalizado */
+        .range-wrap { position: relative; margin: 20px 0; }
+        .form-range::-webkit-slider-thumb {
+            background: var(--primary-color);
+            height: 20px; width: 20px;
+            margin-top: -8px;
+        }
+
+        /* Botões de Seleção (Dor) */
+        .btn-check:checked + .btn-outline-danger {
+            background-color: #ef4444; color: white; border-color: #ef4444;
+        }
+        .btn-check:checked + .btn-outline-success {
+            background-color: #10b981; color: white; border-color: #10b981;
+        }
+        .btn-group-lg > .btn { border-radius: 12px; padding: 12px; font-weight: 600; }
+
+        /* Botão Principal */
+        .btn-submit {
+            background-color: #111827; /* Preto suave */
+            color: white;
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            transition: transform 0.1s;
+        }
+        .btn-submit:active { transform: scale(0.98); }
+
+        /* Card de Resultado */
+        .result-card {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 1px solid #e2e8f0;
+            display: none; /* Escondido inicialmente */
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .highlight-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <h1>RunAI Pro</h1>
+        <p>Inteligência Artificial para sua Performance</p>
+    </div>
+
+    <div class="app-body">
+        <form onsubmit="event.preventDefault(); enviarTreino();">
+            
+            <div class="form-floating mb-4">
+                <input type="number" class="form-control" id="km" placeholder="0.0" step="0.1" inputmode="decimal" required>
+                <label for="km">Distância percorrida (KM)</label>
+            </div>
+
+            <div class="form-floating mb-4">
+                <input type="number" class="form-control" id="sono" placeholder="0.0" step="0.5" inputmode="decimal" required>
+                <label for="sono">Horas de sono (Noite anterior)</label>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label d-flex justify-content-between fw-bold text-secondary">
+                    <span>Intensidade (Percepção)</span>
+                    <span id="valorIntensidade" class="text-primary">5</span>
+                </label>
+                <input type="range" class="form-range" min="0" max="10" step="1" id="intensidade" value="5" oninput="atualizarLabel(this.value)">
+                <div class="d-flex justify-content-between text-muted small">
+                    <span>Leve</span>
+                    <span>Moderado</span>
+                    <span>Exaustivo</span>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold text-secondary d-block mb-2">Sentiu dor ou lesão?</label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="dor" id="dor_nao" value="0" checked>
+                    <label class="btn btn-outline-success" for="dor_nao">👍 Não</label>
+
+                    <input type="radio" class="btn-check" name="dor" id="dor_sim" value="1">
+                    <label class="btn btn-outline-danger" for="dor_sim">⚠️ Sim</label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btnEnviar">
+                Analisar Treino
+            </button>
+        </form>
+
+        <div id="resultadoContainer" class="result-card">
+            <h5 class="text-center fw-bold mb-3">📊 Análise da IA</h5>
+            
+            <div style="position: relative; height:200px; width:100%">
+                <canvas id="meuGrafico"></canvas>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="text-center">
+                <p class="text-muted mb-1">Acumulado Semanal</p>
+                <div id="textoAcumulado" class="highlight-number text-dark">0 km</div>
+                
+                <div class="alert alert-success mt-3 border-0 shadow-sm" style="background-color: #dcfce7; color: #166534;">
+                    <strong>💡 Próximo Treino:</strong><br>
+                    <span id="textoDica">Calculando...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Configuração ---
+    // ⚠️ TROQUE PELO SEU IP AQUI!
+    const API_URL = '/registrar_treino';
+    const API_TOKEN = 'mestrado_andriel_2026';
+
+    let chartInstance = null;
+
+    // Atualiza o número da intensidade enquanto arrasta
+    function atualizarLabel(val) {
+        document.getElementById('valorIntensidade').innerText = val;
+    }
+
+    async function enviarTreino() {
+        // Efeito de Carregando
+        const btn = document.getElementById('btnEnviar');
+        const originalText = btn.innerText;
+        btn.innerText = "Processando IA...";
+        btn.disabled = true;
+        btn.style.opacity = "0.7";
+
+        // Coleta dados
+        const dados = {
+            km_treino: parseFloat(document.getElementById('km').value),
+            intensidade: parseInt(document.getElementById('intensidade').value),
+            horas_sono: parseFloat(document.getElementById('sono').value),
+            sentiu_dor: parseInt(document.querySelector('input[name="dor"]:checked').value)
+        };
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-token': API_TOKEN 
+                },
+                body: JSON.stringify(dados)
+            });
+
+            if (!response.ok) throw new Error('Falha na conexão');
+
+            const json = await response.json();
+
+            // Mostra o resultado
+            exibirResultado(json);
+
+            btn.innerText = "✅ Treino Salvo!";
+            setTimeout(() => { btn.innerText = originalText; btn.disabled = false; btn.style.opacity = "1"; }, 2000);
+
+        } catch (error) {
+            alert("Erro: Não foi possível conectar ao servidor Python.\nVerifique se o IP está correto e o servidor rodando.");
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    function exibirResultado(data) {
+        const container = document.getElementById('resultadoContainer');
+        container.style.display = 'block';
+
+        // Atualiza textos
+        document.getElementById('textoAcumulado').innerText = data.acumulado_semana + " km";
+        document.getElementById('textoDica').innerHTML = `
+            Você pode correr até <b>+${data.sugerido_proximo} km</b> com segurança.
+        `;
+
+        // Renderiza Gráfico
+        const ctx = document.getElementById('meuGrafico').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Carga Atual'],
+                datasets: [
+                    {
+                        label: 'Já Realizado',
+                        data: [data.acumulado_semana],
+                        backgroundColor: '#94a3b8', // Cinza
+                        borderRadius: 8,
+                    },
+                    {
+                        label: 'Potencial Seguro',
+                        data: [data.sugerido_proximo],
+                        backgroundColor: '#22c55e', // Verde Vibrante
+                        borderRadius: 8,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, grid: {display: false} },
+                    y: { stacked: true, display: false } // Esconde eixo Y para ficar limpo
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // Rola a tela até o resultado
+        container.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+
+</body>
+</html>
