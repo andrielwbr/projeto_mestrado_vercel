@@ -25,7 +25,7 @@
 </head>
 <body>
 
-    <div id="sysMonitor" class="status-bar">⌛ Carregando Sistema...</div>
+    <div id="sysMonitor" class="status-bar">⌛ Inicializando...</div>
 
     <div id="loginScreen" class="card-custom mt-5">
         <h3 class="text-center fw-bold text-primary mb-3">RunAI Coach 🔐</h3>
@@ -38,12 +38,12 @@
 
         <div class="mb-4">
             <label class="fw-bold small">Senha</label>
-            <input type="password" id="password" class="form-control" placeholder="******">
+            <input type="password" id="password" class="form-control" placeholder="Mínimo 6 caracteres">
         </div>
 
         <div class="d-grid gap-2">
-            <button onclick="fazerLogin()" id="btnEntrar" class="btn btn-primary fw-bold">ENTRAR</button>
-            <button onclick="criarConta()" id="btnCriar" class="btn btn-outline-secondary">CRIAR CONTA</button>
+            <button id="btnEntrar" class="btn btn-primary fw-bold">ENTRAR</button>
+            <button id="btnCriar" class="btn btn-outline-secondary">CRIAR CONTA</button>
         </div>
         
         <div id="msgLog" class="alert alert-warning mt-3 text-center small" style="display:none"></div>
@@ -53,12 +53,12 @@
         <div class="card p-4 shadow-sm border-0">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="m-0 fw-bold">🏃 Novo Treino</h5>
-                <button onclick="sair()" class="btn btn-sm btn-light text-danger border">Sair</button>
+                <button id="btnSair" class="btn btn-sm btn-light text-danger border">Sair</button>
             </div>
             
             <p class="small text-muted">Usuário: <span id="userDisplay" class="fw-bold text-dark">...</span></p>
 
-            <form onsubmit="event.preventDefault(); enviarTreino();">
+            <form id="formTreino">
                 <div class="row g-2 mb-3">
                     <div class="col-6"><input type="number" id="idade" class="form-control" placeholder="Idade" required></div>
                     <div class="col-6">
@@ -87,94 +87,112 @@
     </div>
 
 <script>
-    // --- CONFIGURAÇÃO ---
+    // --- CHAVES DO SUPABASE (Configuradas) ---
     const SUPABASE_URL = 'https://iqdllutxyqfgqfafxrrv.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZGxsdXR4eXFmZ3FmYWZ4cnJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDUyOTEsImV4cCI6MjA4Njc4MTI5MX0.g_gQlasCrfaQqYwATWhtaLrOGn00vv5etBecBBuMiKg';
 
     let supabase;
     let usuarioID = null;
 
-    // --- LOG NA TELA ---
-    function logTela(msg, cor="alert-warning") {
+    // --- FUNÇÕES DE INTERFACE ---
+    function logTela(msg, tipo="alert-warning") {
         const div = document.getElementById('msgLog');
         div.style.display = 'block';
-        div.className = `alert ${cor} mt-3 text-center small`;
+        div.className = `alert ${tipo} mt-3 text-center small`;
         div.innerText = msg;
     }
 
-    // --- INICIALIZAÇÃO ---
-    window.onload = function() {
+    // --- INICIALIZAÇÃO SEGURA (DOMContentLoaded) ---
+    document.addEventListener('DOMContentLoaded', () => {
         const monitor = document.getElementById('sysMonitor');
 
         if (typeof window.supabase === 'undefined') {
             monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ ERRO: Biblioteca Supabase não carregou.';
+            monitor.innerText = '❌ ERRO: Biblioteca Supabase bloqueada.';
             return;
         }
 
         try {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             monitor.className = 'status-bar status-ok';
-            monitor.innerText = '✅ Sistema Conectado';
+            monitor.innerText = '✅ Sistema Pronto';
+
+            // LIGA OS EVENTOS (Melhor que onclick no HTML)
+            document.getElementById('btnEntrar').addEventListener('click', fazerLogin);
+            document.getElementById('btnCriar').addEventListener('click', criarConta);
+            document.getElementById('btnSair').addEventListener('click', sair);
+            document.getElementById('formTreino').addEventListener('submit', enviarTreino);
+
             verificarSessao();
         } catch (e) {
             monitor.className = 'status-bar status-erro';
             monitor.innerText = '❌ Erro Fatal: ' + e.message;
         }
-    };
+    });
 
-    // --- CRIAR CONTA ---
+    // --- LÓGICA DE CADASTRO ---
     async function criarConta() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+        const emailInput = document.getElementById('email').value;
+        const passInput = document.getElementById('password').value;
+        
+        // LIMPEZA DE DADOS (CRÍTICO)
+        const email = emailInput ? emailInput.trim() : "";
+        const password = passInput ? passInput.trim() : "";
+
+        if (!email || !password) return logTela("Preencha email e senha.", "alert-danger");
+        if (password.length < 6) return logTela("A senha precisa de 6 ou mais dígitos.", "alert-danger");
+
         const btn = document.getElementById('btnCriar');
-        
-        if (!email || !password) return logTela("Digite email e senha!", "alert-danger");
-        if (password.length < 6) return logTela("Senha muito curta (min 6).", "alert-danger");
-        
         btn.innerText = "Criando...";
         btn.disabled = true;
-        logTela("Enviando dados para o Supabase...", "alert-info");
+        logTela("Conectando ao servidor...", "alert-info");
 
         try {
-            const { data, error } = await supabase.auth.signUp({ email, password });
+            const { data, error } = await supabase.auth.signUp({ 
+                email: email, 
+                password: password 
+            });
 
-            if (error) {
-                throw error;
-            }
+            if (error) throw error;
 
-            // Se chegou aqui, não deu erro. Mas checamos se logou.
             if (data.session) {
-                alert("✅ Conta criada e logada com sucesso!");
+                alert("✅ Conta criada com sucesso!");
                 verificarSessao();
-            } else if (data.user && !data.session) {
-                // CASO CRÍTICO: Usuário criado, mas sem sessão
-                alert("⚠️ Conta criada, mas o Login Automático falhou.\n\nMOTIVO: A confirmação de email está ativada no Supabase.\n\nSOLUÇÃO: Vá no Supabase > Auth > Providers > Email e desmarque 'Confirm Email'.");
-                logTela("Erro: Confirmação de email necessária.", "alert-danger");
+            } else {
+                // Se criou mas não logou, geralmente é confirmação de email
+                logTela("⚠️ Conta criada! Tente fazer login agora.", "alert-success");
+                alert("Conta criada! Se o login automático falhar, verifique se a opção 'Confirm Email' está desativada no Supabase.");
             }
 
         } catch (erro) {
             console.error(erro);
-            logTela("Erro ao criar: " + erro.message, "alert-danger");
+            if (erro.message.includes("already registered")) {
+                logTela("Este email já tem conta. Tente 'Entrar'.", "alert-warning");
+            } else {
+                logTela("Erro: " + erro.message, "alert-danger");
+            }
         } finally {
             btn.innerText = "CRIAR CONTA";
             btn.disabled = false;
         }
     }
 
-    // --- FAZER LOGIN ---
+    // --- LÓGICA DE LOGIN ---
     async function fazerLogin() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
         const btn = document.getElementById('btnEntrar');
-        
+
+        if (!email || !password) return logTela("Digite email e senha.", "alert-danger");
+
         btn.innerText = "Entrando...";
         btn.disabled = true;
         
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
         if (error) {
-            logTela("Login falhou: " + error.message, "alert-danger");
+            logTela("Falha ao entrar: " + error.message, "alert-danger");
+            if(error.message.includes("Invalid login")) logTela("Email ou senha incorretos.", "alert-danger");
             btn.innerText = "ENTRAR";
             btn.disabled = false;
         } else {
@@ -189,6 +207,8 @@
             document.getElementById('appScreen').classList.remove('hidden');
             document.getElementById('userDisplay').innerText = session.user.email;
             usuarioID = session.user.id;
+            
+            // Tenta recuperar dados locais
             if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
         }
     }
@@ -198,9 +218,11 @@
         window.location.reload();
     }
 
-    async function enviarTreino() {
+    // --- LÓGICA DO APP (TREINO) ---
+    async function enviarTreino(e) {
+        e.preventDefault();
         const btn = document.getElementById('btnEnviar');
-        btn.innerText = "Processando...";
+        btn.innerText = "Analisando...";
         btn.disabled = true;
 
         localStorage.setItem('run_age', document.getElementById('idade').value);
@@ -229,7 +251,7 @@
             document.getElementById('textoIA').innerText = res.analise.mensagem;
             document.getElementById('dicaIA').innerText = res.analise.proximo_treino;
         } catch (err) {
-            alert("Erro de conexão: " + err);
+            alert("Erro no servidor: " + err);
         } finally {
             btn.innerText = "ANALISAR";
             btn.disabled = false;
