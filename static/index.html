@@ -1,113 +1,108 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RunAI - Versão Direta</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f8fafc; padding: 20px; font-family: sans-serif; }
-        .main-card { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import os
+from supabase import create_client, Client
 
-<div class="main-card">
-    <h3 class="text-center fw-bold text-primary mb-4">RunAI Coach 🏃</h3>
+app = FastAPI()
+
+# --- CONEXÃO COM O BANCO ---
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
+
+class TreinoInput(BaseModel):
+    user_id: str
+    idade: int
+    nivel: str 
+    km: float
+    tempo: float
+    calorias: float # <--- DADO IMPORTANTE
+    esforco: int
+    clima: str
+
+# --- CÉREBRO DA IA (Com Cálculo de Calorias) ---
+def gerar_prescricao(treino, historico):
+    # 1. Descobre quantas calorias você gasta por KM (Eficiência)
+    fator_calorico = 70 # Média padrão humana
+    if treino.km > 0 and treino.calorias > 0:
+        fator_calorico = treino.calorias / treino.km
+
+    # 2. Cálculo de Carga (ACWR)
+    carga_aguda = treino.km
+    for t in historico[:6]: carga_aguda += t.get('km_percorridos', 0)
     
-    <form onsubmit="event.preventDefault(); enviarTreino();">
-        <div class="mb-3">
-            <label class="small fw-bold">NICKNAME (SEU IDENTIFICADOR)</label>
-            <input type="text" id="user_id" class="form-control" placeholder="Ex: andriel" required>
-        </div>
+    total_historico = sum(t.get('km_percorridos', 0) for t in historico)
+    divisor = 4 if len(historico) > 4 else 1 
+    carga_cronica = (total_historico + treino.km) / divisor
+    
+    if carga_cronica == 0: carga_cronica = 1
+    ratio = carga_aguda / carga_cronica
 
-        <div class="row g-2 mb-3">
-            <div class="col-6">
-                <input type="number" id="idade" class="form-control" placeholder="Idade" required>
-            </div>
-            <div class="col-6">
-                <select id="nivel" class="form-select">
-                    <option value="iniciante">Iniciante</option>
-                    <option value="avancado">Já Corro</option>
-                </select>
-            </div>
-        </div>
+    # 3. Definição do Próximo Treino
+    # Ajuste para idade
+    limite = 1.5 if treino.idade < 45 else 1.3
+    
+    status = ""
+    msg = ""
+    proximo_km = 0
 
-        <div class="row g-2 mb-3">
-            <div class="col-6">
-                <input type="number" id="km" class="form-control" placeholder="KM" step="0.1" required>
-            </div>
-            <div class="col-6">
-                <input type="number" id="tempo" class="form-control" placeholder="Minutos" required>
-            </div>
-        </div>
+    if ratio > limite:
+        status = "🔴 ALTO RISCO (Descanse)"
+        msg = "Carga muito alta. Risco de lesão iminente."
+        proximo_km = 0 # Descanso
+        acao = "Descanso total de 48h."
+    
+    elif 0.8 <= ratio <= limite:
+        status = "🟢 ZONA IDEAL (Evoluindo)"
+        msg = "Treino perfeito. Seu corpo aceitou bem a carga."
+        proximo_km = treino.km * 1.1 # Aumenta 10%
+        acao = "Descanso de 24h."
 
-        <div class="mb-3">
-            <input type="number" id="calorias" class="form-control" placeholder="Calorias Gastas" required>
-        </div>
+    else:
+        status = "🟡 CARGA BAIXA (Manutenção)"
+        msg = "Treino leve. Pouco estímulo para evoluir."
+        proximo_km = treino.km * 1.2 # Pode aumentar 20%
+        acao = "Pode treinar amanhã."
 
-        <label class="small fw-bold">ESFORÇO: <span id="valEsforco" class="text-primary">5</span></label>
-        <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
+    # 4. CÁLCULO FINAL DAS CALORIAS PREVISTAS
+    # Se for descanso, caloria é 0. Se for treino, calcula baseada na sua eficiência.
+    calorias_previstas = int(proximo_km * fator_calorico)
+    
+    if proximo_km > 0:
+        texto_final = f"Correr {proximo_km:.1f} km (Gasto est: ~{calorias_previstas} kcal)"
+    else:
+        texto_final = "Apenas caminhada leve ou alongamento (Recuperação)"
 
-        <button type="submit" id="btnEnviar" class="btn btn-dark w-100 mt-3 py-2 fw-bold">ANALISAR TREINO</button>
-    </form>
-
-    <div id="resultado" class="mt-4 p-3 bg-light rounded border hidden">
-        <h5 id="statusIA" class="fw-bold text-uppercase"></h5>
-        <p id="textoIA" class="small text-muted"></p>
-        <div class="alert alert-primary py-2 small fw-bold mb-0" id="dicaIA"></div>
-    </div>
-</div>
-
-<script>
-    // Recupera o nome salvo no navegador
-    window.onload = () => {
-        if(localStorage.getItem('run_user')) document.getElementById('user_id').value = localStorage.getItem('run_user');
-        if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
-    };
-
-    async function enviarTreino() {
-        const btn = document.getElementById('btnEnviar');
-        btn.innerText = "Analisando...";
-        btn.disabled = true;
-
-        const user = document.getElementById('user_id').value;
-        localStorage.setItem('run_user', user);
-        localStorage.setItem('run_age', document.getElementById('idade').value);
-
-        const dados = {
-            user_id: user,
-            idade: parseInt(document.getElementById('idade').value),
-            nivel: document.getElementById('nivel').value,
-            km: parseFloat(document.getElementById('km').value),
-            tempo: parseFloat(document.getElementById('tempo').value),
-            calorias: parseFloat(document.getElementById('calorias').value),
-            esforco: parseInt(document.getElementById('esforco').value),
-            clima: "Nublado"
-        };
-
-        try {
-            const req = await fetch('/registrar_treino', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(dados)
-            });
-            const res = await req.json();
-            
-            document.getElementById('resultado').classList.remove('hidden');
-            document.getElementById('statusIA').innerText = res.analise.status;
-            document.getElementById('textoIA').innerText = res.analise.mensagem;
-            document.getElementById('dicaIA').innerHTML = `<b>Ação:</b> ${res.analise.acao}<br><b>Próximo:</b> ${res.analise.proximo_treino}`;
-
-        } catch (e) {
-            alert("Erro: " + e);
-        } finally {
-            btn.innerText = "ANALISAR TREINO";
-            btn.disabled = false;
-        }
+    return {
+        "status": status,
+        "mensagem": msg,
+        "acao": acao,
+        "proximo_treino": texto_final # AQUI ESTÁ A MÁGICA
     }
-</script>
 
-</body>
-</html>
+@app.post("/registrar_treino")
+def registrar_treino(dados: TreinoInput):
+    try:
+        # Salva
+        supabase.table("treinos").insert({
+            "user_id": dados.user_id.lower(),
+            "idade": dados.idade,
+            "nivel_experiencia": dados.nivel,
+            "km_percorridos": dados.km,
+            "tempo_gasto": dados.tempo,
+            "calorias": dados.calorias,
+            "esforco_percebido": dados.esforco,
+            "clima": dados.clima
+        }).execute()
+
+        # Busca Histórico
+        res = supabase.table("treinos").select("*").eq("user_id", dados.user_id.lower()).order("data_hora", desc=True).limit(28).execute()
+        
+        # Analisa
+        analise = gerar_prescricao(dados, res.data if res.data else [])
+
+        return {"analise": analise}
+
+    except Exception as e:
+        print(f"Erro: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
