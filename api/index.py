@@ -5,7 +5,7 @@ from supabase import create_client, Client
 
 app = FastAPI()
 
-# --- CONFIGURAÇÃO ---
+# --- CONEXÃO COM O BANCO ---
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
@@ -16,64 +16,74 @@ class TreinoInput(BaseModel):
     nivel: str 
     km: float
     tempo: float
-    calorias: float
+    calorias: float # <--- DADO IMPORTANTE
     esforco: int
     clima: str
 
-# --- LÓGICA DO TREINADOR (ACWR + CALORIAS) ---
-def gerar_prescricao(treino_atual, historico):
-    fator_calorico = 70 # Padrão médio
-    if treino_atual.km > 0 and treino_atual.calorias > 0:
-        fator_calorico = treino_atual.calorias / treino_atual.km
+# --- CÉREBRO DA IA (Com Cálculo de Calorias) ---
+def gerar_prescricao(treino, historico):
+    # 1. Descobre quantas calorias você gasta por KM (Eficiência)
+    fator_calorico = 70 # Média padrão humana
+    if treino.km > 0 and treino.calorias > 0:
+        fator_calorico = treino.calorias / treino.km
 
-    carga_aguda = treino_atual.km
+    # 2. Cálculo de Carga (ACWR)
+    carga_aguda = treino.km
     for t in historico[:6]: carga_aguda += t.get('km_percorridos', 0)
     
     total_historico = sum(t.get('km_percorridos', 0) for t in historico)
     divisor = 4 if len(historico) > 4 else 1 
-    carga_cronica = (total_historico + treino_atual.km) / divisor
+    carga_cronica = (total_historico + treino.km) / divisor
     
     if carga_cronica == 0: carga_cronica = 1
     ratio = carga_aguda / carga_cronica
 
-    # Ajustes de Segurança
-    fator_recuperacao = 1.2 if treino_atual.idade > 45 else 1.0
-    if treino_atual.nivel == 'iniciante': fator_recuperacao += 0.1
+    # 3. Definição do Próximo Treino
+    # Ajuste para idade
+    limite = 1.5 if treino.idade < 45 else 1.3
+    
+    status = ""
+    msg = ""
+    proximo_km = 0
 
-    if ratio > (1.5 / fator_recuperacao):
-        km_seguro = 3.0
-        cal_prev = int(km_seguro * (fator_calorico * 0.8))
-        return {
-            "status": "🔴 RISCO ELEVADO",
-            "mensagem": "Volume muito alto para seu histórico recente.",
-            "acao": "Descanso OBRIGATÓRIO de 48h.",
-            "proximo_treino": f"Caminhada leve de {km_seguro}km (~{cal_prev} kcal)",
-            "ratio": round(ratio, 2)
-        }
-    elif 0.8 <= ratio <= 1.3:
-        proximo_km = treino_atual.km * 1.1
-        cal_prev = int(proximo_km * fator_calorico)
-        return {
-            "status": "🟢 ZONA IDEAL",
-            "mensagem": "Excelente evolução. Carga controlada.",
-            "acao": "Descanso de 24h.",
-            "proximo_treino": f"Correr {proximo_km:.1f} km (~{cal_prev} kcal).",
-            "ratio": round(ratio, 2)
-        }
+    if ratio > limite:
+        status = "🔴 ALTO RISCO (Descanse)"
+        msg = "Carga muito alta. Risco de lesão iminente."
+        proximo_km = 0 # Descanso
+        acao = "Descanso total de 48h."
+    
+    elif 0.8 <= ratio <= limite:
+        status = "🟢 ZONA IDEAL (Evoluindo)"
+        msg = "Treino perfeito. Seu corpo aceitou bem a carga."
+        proximo_km = treino.km * 1.1 # Aumenta 10%
+        acao = "Descanso de 24h."
+
     else:
-        proximo_km = treino_atual.km * 1.2
-        cal_prev = int(proximo_km * fator_calorico)
-        return {
-            "status": "🟡 CARGA BAIXA",
-            "mensagem": "Volume abaixo da sua capacidade atual.",
-            "acao": "Pode treinar amanhã.",
-            "proximo_treino": f"Subir para {proximo_km:.1f} km (~{cal_prev} kcal).",
-            "ratio": round(ratio, 2)
-        }
+        status = "🟡 CARGA BAIXA (Manutenção)"
+        msg = "Treino leve. Pouco estímulo para evoluir."
+        proximo_km = treino.km * 1.2 # Pode aumentar 20%
+        acao = "Pode treinar amanhã."
+
+    # 4. CÁLCULO FINAL DAS CALORIAS PREVISTAS
+    # Se for descanso, caloria é 0. Se for treino, calcula baseada na sua eficiência.
+    calorias_previstas = int(proximo_km * fator_calorico)
+    
+    if proximo_km > 0:
+        texto_final = f"Correr {proximo_km:.1f} km (Gasto est: ~{calorias_previstas} kcal)"
+    else:
+        texto_final = "Apenas caminhada leve ou alongamento (Recuperação)"
+
+    return {
+        "status": status,
+        "mensagem": msg,
+        "acao": acao,
+        "proximo_treino": texto_final # AQUI ESTÁ A MÁGICA
+    }
 
 @app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
+        # Salva
         supabase.table("treinos").insert({
             "user_id": dados.user_id.lower(),
             "idade": dados.idade,
@@ -85,8 +95,14 @@ def registrar_treino(dados: TreinoInput):
             "clima": dados.clima
         }).execute()
 
+        # Busca Histórico
         res = supabase.table("treinos").select("*").eq("user_id", dados.user_id.lower()).order("data_hora", desc=True).limit(28).execute()
         
-        return {"analise": gerar_prescricao(dados, res.data if res.data else [])}
+        # Analisa
+        analise = gerar_prescricao(dados, res.data if res.data else [])
+
+        return {"analise": analise}
+
     except Exception as e:
+        print(f"Erro: {e}")
         raise HTTPException(status_code=500, detail=str(e))
