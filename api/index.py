@@ -10,85 +10,112 @@ url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
-class Treino(BaseModel):
-    user_id: str  # <--- NOVO CAMPO OBRIGATÓRIO
+class TreinoInput(BaseModel):
+    user_id: str
+    idade: int
+    nivel: str  # 'iniciante' ou 'avancado'
     km: float
     tempo: float
     calorias: float
     esforco: int
     clima: str
 
-# --- INTELIGÊNCIA ARTIFICIAL (Lógica ACWR) ---
-def calcular_risco_lesao(novo_treino, historico):
-    historico_recente = [t for t in historico]
+# --- LÓGICA DE TREINADOR PROFISSIONAL ---
+def gerar_prescricao(treino_atual, historico):
+    # 1. Analisa Histórico (Carga Crônica)
+    if not historico:
+        # Se é o PRIMEIRO treino da vida no app
+        if treino_atual.nivel == 'iniciante':
+            return {
+                "status": "🟢 INÍCIO DE JORNADA",
+                "mensagem": "Bem-vindo! O segredo é a consistência.",
+                "acao": "Descanso de 24h",
+                "proximo_treino": "Caminhada/Corrida leve de 3km",
+                "ratio": 0.0
+            }
     
-    # Carga Aguda (Treino atual + últimos 7 dias)
-    carga_aguda = novo_treino.km
-    for t in historico_recente[:6]: 
-        carga_aguda += t.get('km_percorridos', 0)
-
-    # Carga Crônica (Média das últimas 4 semanas)
-    total_historico = sum(t.get('km_percorridos', 0) for t in historico_recente)
-    carga_cronica = (total_historico + novo_treino.km) / 4 
+    # Cálculo ACWR (Razão Aguda:Crônica)
+    carga_aguda = treino_atual.km
+    for t in historico[:6]: carga_aguda += t.get('km_percorridos', 0)
+    
+    total_historico = sum(t.get('km_percorridos', 0) for t in historico)
+    divisor = 4 if len(historico) > 4 else 1 # Evita distorção no começo
+    carga_cronica = (total_historico + treino_atual.km) / divisor
     
     if carga_cronica == 0: carga_cronica = 1
-
     ratio = carga_aguda / carga_cronica
 
-    if ratio > 1.5:
-        status = "🔴 ALTO RISCO"
-        msg = "Cuidado! Aumento brusco de volume."
-        sugestao = f"Descanse. Teto seguro: {novo_treino.km * 0.5:.1f} km."
-    elif ratio > 1.2:
-        status = "🟡 MODERADO"
-        msg = "Zona de atenção."
-        sugestao = f"Mantenha o volume atual."
-    elif ratio < 0.8:
-        status = "🟢 BAIXO (Destreinando)"
-        msg = "Volume baixo para sua capacidade."
-        sugestao = f"Pode subir para {novo_treino.km * 1.1:.1f} km."
-    else:
-        status = "🟢 ZONA IDEAL"
-        msg = "Evolução consistente."
-        sugestao = f"Próximo alvo: {novo_treino.km * 1.05:.1f} km."
+    # 2. Ajuste por Idade e Nível (Fatores de Segurança)
+    fator_recuperacao = 1.0
+    if treino_atual.idade > 45: fator_recuperacao = 1.2 # Precisa de 20% mais descanso
+    if treino_atual.nivel == 'iniciante': fator_recuperacao += 0.1
 
-    return {
-        "status": status,
-        "mensagem": msg,
-        "ratio": round(ratio, 2),
-        "sugerido_proximo": sugestao,
-        "acumulado_semana": round(carga_aguda, 1)
-    }
+    # 3. Tomada de Decisão (A Lógica do Treinador)
+    
+    # CENÁRIO A: Sobrecarga (Risco de Lesão)
+    if ratio > (1.5 / fator_recuperacao):
+        return {
+            "status": "🔴 RISCO ELEVADO (Overreaching)",
+            "mensagem": "Você aumentou o volume rápido demais para seu perfil.",
+            "acao": "Descanso OBRIGATÓRIO de 48h a 72h.",
+            "proximo_treino": "Apenas caminhada ou trote leve (Max 3km) para soltar.",
+            "ratio": round(ratio, 2)
+        }
+
+    # CENÁRIO B: Zona Ideal de Evolução
+    elif 0.8 <= ratio <= 1.3:
+        # Regra dos 10% de progressão
+        proximo_km = treino_atual.km * 1.1
+        tipo = "Moderado" if treino_atual.nivel == 'avancado' else "Leve"
+        
+        return {
+            "status": "🟢 ZONA DE EVOLUÇÃO",
+            "mensagem": "Carga perfeita. Seu corpo está absorvendo bem o treino.",
+            "acao": "Descanso de 24h ou Cross-training (Bike/Natação).",
+            "proximo_treino": f"Correr {proximo_km:.1f} km - Ritmo {tipo}.",
+            "ratio": round(ratio, 2)
+        }
+
+    # CENÁRIO C: Destreinamento (Carga Baixa)
+    else:
+        return {
+            "status": "🟡 CARGA BAIXA (Manutenção)",
+            "mensagem": "Volume baixo. Seguro, mas pouco estímulo para evoluir.",
+            "acao": "Pode treinar amanhã se não houver dores.",
+            "proximo_treino": f"Tente aumentar para {treino_atual.km * 1.2:.1f} km ou fazer Tiros Curtos.",
+            "ratio": round(ratio, 2)
+        }
 
 @app.post("/registrar_treino")
-def registrar_treino(treino: Treino):
+def registrar_treino(dados: TreinoInput):
     try:
-        # 1. Salvar no Banco (COM O USER_ID)
-        dados_novos = {
-            "user_id": treino.user_id, # <--- Carimba o dono
-            "km_percorridos": treino.km,
-            "tempo_gasto": treino.tempo,
-            "calorias": treino.calorias,
-            "esforco_percebido": treino.esforco,
-            "clima": treino.clima
+        # 1. Salvar no Supabase
+        novo_registro = {
+            "user_id": dados.user_id.lower(),
+            "idade": dados.idade,
+            "nivel_experiencia": dados.nivel,
+            "km_percorridos": dados.km,
+            "tempo_gasto": dados.tempo,
+            "calorias": dados.calorias,
+            "esforco_percebido": dados.esforco,
+            "clima": dados.clima
         }
-        supabase.table("treinos").insert(dados_novos).execute()
+        supabase.table("treinos").insert(novo_registro).execute()
 
-        # 2. Buscar Histórico FILTRADO (Segurança de Dados)
-        # O .eq("user_id", treino.user_id) garante que eu só veja OS MEUS dados
-        res_history = supabase.table("treinos")\
-            .select("km_percorridos, data_hora")\
-            .eq("user_id", treino.user_id)\
+        # 2. Buscar Histórico do Usuário
+        res = supabase.table("treinos")\
+            .select("*")\
+            .eq("user_id", dados.user_id.lower())\
             .order("data_hora", desc=True)\
             .limit(28)\
             .execute()
         
-        historico = res_history.data if res_history.data else []
+        historico = res.data if res.data else []
 
-        # 3. Rodar a IA
-        analise = calcular_risco_lesao(treino, historico)
+        # 3. Gerar Análise Profissional
+        prescricao = gerar_prescricao(dados, historico)
 
-        return {"message": "Salvo", "analise": analise}
+        return {"message": "Salvo", "analise": prescricao}
 
     except Exception as e:
         print(f"Erro: {e}")
