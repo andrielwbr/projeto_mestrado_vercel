@@ -1,263 +1,133 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RunAI Coach</title>
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import os
+from supabase import create_client, Client
+
+app = FastAPI()
+
+# --- CONFIGURAÇÃO ---
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
+
+class TreinoInput(BaseModel):
+    user_id: str
+    idade: int
+    nivel: str 
+    km: float
+    tempo: float
+    calorias: float
+    esforco: int
+    clima: str
+
+# --- CÉREBRO DA IA (Com Estimativa de Calorias) ---
+def gerar_prescricao(treino_atual, historico):
+    # 1. Calcula a Eficiência Metabólica do Usuário (Kcal por KM)
+    # Se o usuário não informou calorias, usamos 70kcal/km como padrão média
+    fator_calorico = 70 
+    if treino_atual.km > 0 and treino_atual.calorias > 0:
+        fator_calorico = treino_atual.calorias / treino_atual.km
+
+    # 2. Analisa Histórico (Carga Crônica)
+    if not historico:
+        if treino_atual.nivel == 'iniciante':
+            # Previsão para treino de 3km
+            calorias_previstas = int(3.0 * fator_calorico)
+            return {
+                "status": "🟢 INÍCIO DE JORNADA",
+                "mensagem": "Bem-vindo! O segredo é a consistência.",
+                "acao": "Descanso de 24h",
+                "proximo_treino": f"Caminhada/Corrida leve de 3km (~{calorias_previstas} kcal)",
+                "ratio": 0.0
+            }
     
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    # Cálculo ACWR
+    carga_aguda = treino_atual.km
+    for t in historico[:6]: carga_aguda += t.get('km_percorridos', 0)
+    
+    total_historico = sum(t.get('km_percorridos', 0) for t in historico)
+    divisor = 4 if len(historico) > 4 else 1 
+    carga_cronica = (total_historico + treino_atual.km) / divisor
+    
+    if carga_cronica == 0: carga_cronica = 1
+    ratio = carga_aguda / carga_cronica
 
-    <style>
-        body { background: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; }
-        .card-custom { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; }
-        .hidden { display: none !important; }
+    # 3. Ajuste por Idade e Nível
+    fator_recuperacao = 1.0
+    if treino_atual.idade > 45: fator_recuperacao = 1.2
+    if treino_atual.nivel == 'iniciante': fator_recuperacao += 0.1
+
+    # 4. Tomada de Decisão & Previsão de Calorias
+    
+    # CENÁRIO A: Sobrecarga
+    if ratio > (1.5 / fator_recuperacao):
+        km_seguro = 3.0
+        calorias_previstas = int(km_seguro * (fator_calorico * 0.8)) # Gasta menos andando
+        return {
+            "status": "🔴 RISCO ELEVADO (Overreaching)",
+            "mensagem": "Volume aumentou muito rápido. Risco de lesão.",
+            "acao": "Descanso OBRIGATÓRIO de 48h.",
+            "proximo_treino": f"Caminhada regenerativa de {km_seguro}km (~{calorias_previstas} kcal)",
+            "ratio": round(ratio, 2)
+        }
+
+    # CENÁRIO B: Zona Ideal
+    elif 0.8 <= ratio <= 1.3:
+        proximo_km = treino_atual.km * 1.1
+        calorias_previstas = int(proximo_km * fator_calorico)
+        tipo = "Moderado" if treino_atual.nivel == 'avancado' else "Leve"
         
-        .status-bar { 
-            position: fixed; top: 0; left: 0; width: 100%; 
-            background: #333; color: white; padding: 8px; 
-            text-align: center; font-size: 14px; font-weight: bold;
-            z-index: 9999;
+        return {
+            "status": "🟢 ZONA DE EVOLUÇÃO",
+            "mensagem": "Carga perfeita. Evolução segura.",
+            "acao": "Descanso de 24h ou Cross-training.",
+            "proximo_treino": f"Correr {proximo_km:.1f} km (~{calorias_previstas} kcal) - Ritmo {tipo}.",
+            "ratio": round(ratio, 2)
         }
-        .status-ok { background: #16a34a; }
-        .status-erro { background: #dc2626; }
-    </style>
-</head>
-<body>
 
-    <div id="sysMonitor" class="status-bar">⌛ Inicializando...</div>
+    # CENÁRIO C: Destreinamento
+    else:
+        proximo_km = treino_atual.km * 1.2
+        calorias_previstas = int(proximo_km * fator_calorico)
+        return {
+            "status": "🟡 CARGA BAIXA (Manutenção)",
+            "mensagem": "Volume baixo. Pouco estímulo para evoluir.",
+            "acao": "Treinar amanhã se estiver sem dor.",
+            "proximo_treino": f"Aumentar para {proximo_km:.1f} km (~{calorias_previstas} kcal) na próxima.",
+            "ratio": round(ratio, 2)
+        }
 
-    <div id="loginScreen" class="card-custom mt-5">
-        <h3 class="text-center fw-bold text-primary mb-3">RunAI Coach 🔐</h3>
-        <p class="text-center text-muted small">Acesso Seguro</p>
+@app.post("/registrar_treino")
+def registrar_treino(dados: TreinoInput):
+    try:
+        # Salva no Supabase
+        novo_registro = {
+            "user_id": dados.user_id.lower(),
+            "idade": dados.idade,
+            "nivel_experiencia": dados.nivel,
+            "km_percorridos": dados.km,
+            "tempo_gasto": dados.tempo,
+            "calorias": dados.calorias,
+            "esforco_percebido": dados.esforco,
+            "clima": dados.clima
+        }
+        supabase.table("treinos").insert(novo_registro).execute()
 
-        <div class="mb-3">
-            <label class="fw-bold small">Email</label>
-            <input type="email" id="email" class="form-control" placeholder="seu@email.com">
-        </div>
-
-        <div class="mb-4">
-            <label class="fw-bold small">Senha</label>
-            <input type="password" id="password" class="form-control" placeholder="Mínimo 6 caracteres">
-        </div>
-
-        <div class="d-grid gap-2">
-            <button id="btnEntrar" class="btn btn-primary fw-bold">ENTRAR</button>
-            <button id="btnCriar" class="btn btn-outline-secondary">CRIAR CONTA</button>
-        </div>
+        # Busca Histórico
+        res = supabase.table("treinos")\
+            .select("*")\
+            .eq("user_id", dados.user_id.lower())\
+            .order("data_hora", desc=True)\
+            .limit(28)\
+            .execute()
         
-        <div id="msgLog" class="alert alert-warning mt-3 text-center small" style="display:none"></div>
-    </div>
+        historico = res.data if res.data else []
 
-    <div id="appScreen" class="hidden container mt-5" style="max-width: 500px;">
-        <div class="card p-4 shadow-sm border-0">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="m-0 fw-bold">🏃 Novo Treino</h5>
-                <button id="btnSair" class="btn btn-sm btn-light text-danger border">Sair</button>
-            </div>
-            
-            <p class="small text-muted">Usuário: <span id="userDisplay" class="fw-bold text-dark">...</span></p>
+        # Gera Análise
+        prescricao = gerar_prescricao(dados, historico)
 
-            <form id="formTreino">
-                <div class="row g-2 mb-3">
-                    <div class="col-6"><input type="number" id="idade" class="form-control" placeholder="Idade" required></div>
-                    <div class="col-6">
-                        <select id="nivel" class="form-select">
-                            <option value="iniciante">Iniciante</option>
-                            <option value="avancado">Já Corro</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-2 mb-3">
-                    <div class="col-6"><input type="number" id="km" class="form-control" placeholder="KM" step="0.1" required></div>
-                    <div class="col-6"><input type="number" id="tempo" class="form-control" placeholder="Min" required></div>
-                </div>
-                <label>Esforço (1-10): <span id="valEsforco" class="text-primary fw-bold">5</span></label>
-                <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
-                
-                <button type="submit" id="btnEnviar" class="btn btn-dark w-100 mt-3 fw-bold">ANALISAR</button>
-            </form>
+        return {"message": "Salvo", "analise": prescricao}
 
-            <div id="resultado" class="mt-4 p-3 bg-light rounded border hidden">
-                <h5 id="statusIA" class="fw-bold">...</h5>
-                <p id="textoIA" class="small text-muted">...</p>
-                <div class="alert alert-info py-2 small fw-bold mb-0" id="dicaIA">...</div>
-            </div>
-        </div>
-    </div>
-
-<script>
-    // --- CHAVES DO SUPABASE (Configuradas) ---
-    const SUPABASE_URL = 'https://iqdllutxyqfgqfafxrrv.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZGxsdXR4eXFmZ3FmYWZ4cnJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDUyOTEsImV4cCI6MjA4Njc4MTI5MX0.g_gQlasCrfaQqYwATWhtaLrOGn00vv5etBecBBuMiKg';
-
-    let supabase;
-    let usuarioID = null;
-
-    // --- FUNÇÕES DE INTERFACE ---
-    function logTela(msg, tipo="alert-warning") {
-        const div = document.getElementById('msgLog');
-        div.style.display = 'block';
-        div.className = `alert ${tipo} mt-3 text-center small`;
-        div.innerText = msg;
-    }
-
-    // --- INICIALIZAÇÃO SEGURA (DOMContentLoaded) ---
-    document.addEventListener('DOMContentLoaded', () => {
-        const monitor = document.getElementById('sysMonitor');
-
-        if (typeof window.supabase === 'undefined') {
-            monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ ERRO: Biblioteca Supabase bloqueada.';
-            return;
-        }
-
-        try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            monitor.className = 'status-bar status-ok';
-            monitor.innerText = '✅ Sistema Pronto';
-
-            // LIGA OS EVENTOS (Melhor que onclick no HTML)
-            document.getElementById('btnEntrar').addEventListener('click', fazerLogin);
-            document.getElementById('btnCriar').addEventListener('click', criarConta);
-            document.getElementById('btnSair').addEventListener('click', sair);
-            document.getElementById('formTreino').addEventListener('submit', enviarTreino);
-
-            verificarSessao();
-        } catch (e) {
-            monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ Erro Fatal: ' + e.message;
-        }
-    });
-
-    // --- LÓGICA DE CADASTRO ---
-    async function criarConta() {
-        const emailInput = document.getElementById('email').value;
-        const passInput = document.getElementById('password').value;
-        
-        // LIMPEZA DE DADOS (CRÍTICO)
-        const email = emailInput ? emailInput.trim() : "";
-        const password = passInput ? passInput.trim() : "";
-
-        if (!email || !password) return logTela("Preencha email e senha.", "alert-danger");
-        if (password.length < 6) return logTela("A senha precisa de 6 ou mais dígitos.", "alert-danger");
-
-        const btn = document.getElementById('btnCriar');
-        btn.innerText = "Criando...";
-        btn.disabled = true;
-        logTela("Conectando ao servidor...", "alert-info");
-
-        try {
-            const { data, error } = await supabase.auth.signUp({ 
-                email: email, 
-                password: password 
-            });
-
-            if (error) throw error;
-
-            if (data.session) {
-                alert("✅ Conta criada com sucesso!");
-                verificarSessao();
-            } else {
-                // Se criou mas não logou, geralmente é confirmação de email
-                logTela("⚠️ Conta criada! Tente fazer login agora.", "alert-success");
-                alert("Conta criada! Se o login automático falhar, verifique se a opção 'Confirm Email' está desativada no Supabase.");
-            }
-
-        } catch (erro) {
-            console.error(erro);
-            if (erro.message.includes("already registered")) {
-                logTela("Este email já tem conta. Tente 'Entrar'.", "alert-warning");
-            } else {
-                logTela("Erro: " + erro.message, "alert-danger");
-            }
-        } finally {
-            btn.innerText = "CRIAR CONTA";
-            btn.disabled = false;
-        }
-    }
-
-    // --- LÓGICA DE LOGIN ---
-    async function fazerLogin() {
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const btn = document.getElementById('btnEntrar');
-
-        if (!email || !password) return logTela("Digite email e senha.", "alert-danger");
-
-        btn.innerText = "Entrando...";
-        btn.disabled = true;
-        
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-        if (error) {
-            logTela("Falha ao entrar: " + error.message, "alert-danger");
-            if(error.message.includes("Invalid login")) logTela("Email ou senha incorretos.", "alert-danger");
-            btn.innerText = "ENTRAR";
-            btn.disabled = false;
-        } else {
-            verificarSessao();
-        }
-    }
-
-    async function verificarSessao() {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('appScreen').classList.remove('hidden');
-            document.getElementById('userDisplay').innerText = session.user.email;
-            usuarioID = session.user.id;
-            
-            // Tenta recuperar dados locais
-            if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
-        }
-    }
-
-    async function sair() {
-        await supabase.auth.signOut();
-        window.location.reload();
-    }
-
-    // --- LÓGICA DO APP (TREINO) ---
-    async function enviarTreino(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnEnviar');
-        btn.innerText = "Analisando...";
-        btn.disabled = true;
-
-        localStorage.setItem('run_age', document.getElementById('idade').value);
-
-        const dados = {
-            user_id: usuarioID,
-            idade: parseInt(document.getElementById('idade').value),
-            nivel: document.getElementById('nivel').value,
-            km: parseFloat(document.getElementById('km').value),
-            tempo: parseFloat(document.getElementById('tempo').value),
-            calorias: 0,
-            esforco: parseInt(document.getElementById('esforco').value),
-            clima: "Indefinido"
-        };
-
-        try {
-            const req = await fetch('/registrar_treino', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(dados)
-            });
-            const res = await req.json();
-            
-            document.getElementById('resultado').classList.remove('hidden');
-            document.getElementById('statusIA').innerText = res.analise.status;
-            document.getElementById('textoIA').innerText = res.analise.mensagem;
-            document.getElementById('dicaIA').innerText = res.analise.proximo_treino;
-        } catch (err) {
-            alert("Erro no servidor: " + err);
-        } finally {
-            btn.innerText = "ANALISAR";
-            btn.disabled = false;
-        }
-    }
-</script>
-
-</body>
-</html>
+    except Exception as e:
+        print(f"Erro: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
