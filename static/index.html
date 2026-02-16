@@ -9,28 +9,27 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        body { background: #f1f5f9; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif; }
+        body { background: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; }
         .card-custom { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; }
         .hidden { display: none !important; }
         
-        /* Monitor de Status */
         .status-bar { 
             position: fixed; top: 0; left: 0; width: 100%; 
-            background: #333; color: white; padding: 5px; 
-            text-align: center; font-size: 12px; font-weight: bold;
+            background: #333; color: white; padding: 8px; 
+            text-align: center; font-size: 14px; font-weight: bold;
             z-index: 9999;
         }
-        .status-ok { background: #16a34a; }
-        .status-erro { background: #dc2626; }
+        .status-ok { background: #16a34a; } /* Verde */
+        .status-erro { background: #dc2626; } /* Vermelho */
     </style>
 </head>
 <body>
 
-    <div id="sysMonitor" class="status-bar">⌛ Carregando Sistema...</div>
+    <div id="sysMonitor" class="status-bar">⌛ Conectando ao Banco de Dados...</div>
 
     <div id="loginScreen" class="card-custom mt-5">
         <h3 class="text-center fw-bold text-primary mb-3">RunAI Coach 🔐</h3>
-        <p class="text-center text-muted small">Mestrado em Computação Aplicada</p>
+        <p class="text-center text-muted small">Acesso Seguro</p>
 
         <div class="mb-3">
             <label class="fw-bold small">Email</label>
@@ -46,8 +45,8 @@
             <button id="btnEntrar" class="btn btn-primary fw-bold">ENTRAR</button>
             <button id="btnCriar" class="btn btn-outline-secondary">CRIAR CONTA</button>
         </div>
-
-        <div id="msgLog" class="alert alert-light mt-3 text-center small border" style="display:none"></div>
+        
+        <div id="msgLog" class="alert alert-danger mt-3 text-center small" style="display:none"></div>
     </div>
 
     <div id="appScreen" class="hidden container mt-5" style="max-width: 500px;">
@@ -88,39 +87,38 @@
     </div>
 
 <script>
-    // --- CHAVES DO SUPABASE ---
+    // --- ✅ CONFIGURAÇÃO INSERIDA COM SUCESSO ---
     const SUPABASE_URL = 'https://iqdllutxyqfgqfafxrrv.supabase.co';
-    // ⚠️ TENTANDO USAR A CHAVE QUE VOCÊ ME PASSOU
-    // Se der erro de "API Key", precisaremos da chave 'anon' (que começa com eyJ...)
-    const SUPABASE_KEY = 'sb_publishable_PJ3S6xPzQq_YcpQPAJD0Lw_zOjJZAph';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZGxsdXR4eXFmZ3FmYWZ4cnJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDUyOTEsImV4cCI6MjA4Njc4MTI5MX0.g_gQlasCrfaQqYwATWhtaLrOGn00vv5etBecBBuMiKg';
 
     let supabase;
     let usuarioID = null;
 
-    // --- LOG NA TELA (Para você ver o que acontece) ---
-    function logTela(msg, tipo="info") {
+    // --- LOG NA TELA ---
+    function logTela(msg) {
         const div = document.getElementById('msgLog');
         div.style.display = 'block';
         div.innerText = msg;
-        div.className = tipo === 'erro' ? 'alert alert-danger mt-3 text-center small' : 'alert alert-info mt-3 text-center small';
     }
 
-    // --- INICIALIZAÇÃO SEGURA ---
+    // --- INICIALIZAÇÃO ---
     window.onload = function() {
         const monitor = document.getElementById('sysMonitor');
-        
+
+        // 1. Verifica Biblioteca
         if (typeof window.supabase === 'undefined') {
             monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ ERRO: Biblioteca Supabase bloqueada pela rede.';
+            monitor.innerText = '❌ ERRO: Biblioteca não carregou. Verifique sua rede.';
             return;
         }
 
         try {
+            // 2. Conecta ao Supabase
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             monitor.className = 'status-bar status-ok';
-            monitor.innerText = '✅ Sistema Conectado e Pronto.';
-            
-            // Liga os botões
+            monitor.innerText = '✅ Sistema Conectado e Seguro.';
+
+            // 3. Liga os botões
             document.getElementById('btnEntrar').onclick = fazerLogin;
             document.getElementById('btnCriar').onclick = criarConta;
             document.getElementById('btnSair').onclick = sair;
@@ -129,26 +127,24 @@
             verificarSessao();
         } catch (e) {
             monitor.className = 'status-bar status-erro';
-            monitor.innerText = '❌ Erro na Chave de API: ' + e.message;
+            monitor.innerText = '❌ Erro Fatal: ' + e.message;
         }
     };
 
-    // --- FUNÇÕES ---
+    // --- FUNÇÕES DE CONTA ---
     async function criarConta() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         
-        if (!email || !password) return logTela("Preencha email e senha.", "erro");
-        if (password.length < 6) return logTela("Senha muito curta (min 6).", "erro");
-
-        logTela("Criando conta... Aguarde.");
+        if (!email || !password) return logTela("Preencha email e senha.");
+        if (password.length < 6) return logTela("Senha deve ter 6+ dígitos.");
         
+        logTela("Criando conta...");
         const { data, error } = await supabase.auth.signUp({ email, password });
 
-        if (error) {
-            logTela("Erro ao criar: " + error.message, "erro");
-        } else {
-            alert("Conta Criada! Você já está logado.");
+        if (error) logTela("Erro: " + error.message);
+        else {
+            alert("✅ Conta criada! Você já está logado.");
             verificarSessao();
         }
     }
@@ -160,12 +156,8 @@
         logTela("Entrando...");
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (error) {
-            logTela("Erro: " + error.message, "erro");
-            if(error.message.includes("key")) alert("A chave do Supabase parece inválida. Precisamos da chave 'anon' (Project Settings -> API).");
-        } else {
-            verificarSessao();
-        }
+        if (error) logTela("Login falhou: " + error.message);
+        else verificarSessao();
     }
 
     async function verificarSessao() {
@@ -176,7 +168,7 @@
             document.getElementById('userDisplay').innerText = session.user.email;
             usuarioID = session.user.id;
             
-            // Recupera perfil
+            // Recupera perfil local
             if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
         }
     }
@@ -186,6 +178,7 @@
         window.location.reload();
     }
 
+    // --- ENVIO DO TREINO ---
     async function enviarTreino(e) {
         e.preventDefault();
         const btn = document.getElementById('btnEnviar');
@@ -218,7 +211,7 @@
             document.getElementById('textoIA').innerText = res.analise.mensagem;
             document.getElementById('dicaIA').innerText = res.analise.proximo_treino;
         } catch (err) {
-            alert("Erro de conexão: " + err);
+            alert("Erro de conexão com o servidor: " + err);
         } finally {
             btn.innerText = "ANALISAR";
             btn.disabled = false;
