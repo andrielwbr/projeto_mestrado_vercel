@@ -255,24 +255,31 @@
         // ... (o resto da função fetch continua igualzinho)
 
         try {
-           const req = await fetch('/registrar_treino', {
+          const req = await fetch('/registrar_treino', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(dados)
             });
             const res = await req.json();
             
-            // 👇 NOVA TRAVA: 1 TREINO POR DIA 👇
-            if (res.erro) {
-                alert("⚠️ " + res.erro); // Mostra o pop-up de aviso
-                
-                // Devolve o botão ao estado normal
-                const btn = document.getElementById('btnEnviar');
+            const btn = document.getElementById('btnEnviar');
+
+            // 👇 1. DETECTOR DE ERRO DO PYTHON (Mostra o erro real) 👇
+            if (!req.ok) {
+                alert("Erro no Servidor: " + JSON.stringify(res.detail || res));
                 btn.innerText = "ANALISAR PERFORMANCE";
                 btn.disabled = false;
                 btn.style.opacity = "1";
-                
-                return; // Pára a função aqui para não bugar a tela
+                return;
+            }
+
+            // 👇 2. TRAVA DE 1 TREINO POR DIA 👇
+            if (res.erro) {
+                alert("⚠️ " + res.erro); 
+                btn.innerText = "ANALISAR PERFORMANCE";
+                btn.disabled = false;
+                btn.style.opacity = "1";
+                return; 
             }
             // 👆 ---------------------------- 👆
             
