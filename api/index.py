@@ -12,13 +12,14 @@ supabase: Client = create_client(url, key)
 
 class TreinoInput(BaseModel):
     user_id: str
+    tipo_atividade: str = "corrida"
     idade: int
     nivel: str 
     km: float
     tempo: float
-    calorias: float # <--- DADO IMPORTANTE
     esforco: int
     clima: str
+    # Removemos as 'calorias' daqui
 
 # --- CÉREBRO DA IA (Com Cálculo de Calorias) ---
 def gerar_prescricao(treino, historico):
@@ -83,17 +84,28 @@ def gerar_prescricao(treino, historico):
 @app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
-        # Salva
+        # --- NOVO: CÁLCULO DE CALORIAS AUTOMÁTICO ---
+        # Caminhada gasta ~50 kcal por km, Corrida ~70 kcal.
+        base_kcal = 50 if dados.tipo_atividade == "caminhada" else 70
+        
+        # Ajuste de Esforço: Se o cara fez esforço 10, queima mais. Esforço 1, queima menos.
+        fator_esforco = 1 + ((dados.esforco - 5) * 0.05) 
+        calorias_finais = round((dados.km * base_kcal) * fator_esforco)
+        # ---------------------------------------------
+
+        # Salva no banco de dados com a caloria calculada pelo sistema
         supabase.table("treinos").insert({
             "user_id": dados.user_id.lower(),
             "idade": dados.idade,
             "nivel_experiencia": dados.nivel,
             "km_percorridos": dados.km,
             "tempo_gasto": dados.tempo,
-            "calorias": dados.calorias,
+            "calorias": calorias_finais, # AQUI ENTRA O CÁLCULO MÁGICO
             "esforco_percebido": dados.esforco,
             "clima": dados.clima
         }).execute()
+
+        # ... (restante do código igual)
 
         # Busca Histórico
         res = supabase.table("treinos").select("*").eq("user_id", dados.user_id.lower()).order("data_hora", desc=True).limit(28).execute()

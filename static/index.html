@@ -162,11 +162,6 @@
             </div>
         </div>
 
-        <div class="mb-3">
-            <label style="color: #d63384;">🔥 Calorias Gastas</label>
-            <input type="number" id="calorias" class="form-control" placeholder="Kcal totais" required>
-        </div>
-
         <label>Sensação de Esforço: <span id="valEsforco" style="color: #fa4299; font-weight:bold;">5</span></label>
         <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
 
@@ -193,27 +188,39 @@
         if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
     }
 
-    async function enviar() {
+  async function enviar() {
+        // 1. PEGA OS VALORES PRIMEIRO
+        const idadeUser = parseInt(document.getElementById('idade').value);
+        const kmUser = parseFloat(document.getElementById('km').value);
+        const tempoUser = parseFloat(document.getElementById('tempo').value);
+
+        // 2. TRAVA DE SEGURANÇA (BLOQUEIA NÚMEROS ABSURDOS)
+        if (idadeUser < 10 || idadeUser > 99) return alert("⚠️ Idade inválida. Insira um valor entre 10 e 99 anos.");
+        if (kmUser <= 0 || kmUser > 100) return alert("⚠️ Distância irreal. O limite do sistema é 100km por treino.");
+        if (tempoUser <= 0 || tempoUser > 600) return alert("⚠️ Tempo inválido. Insira o tempo real em minutos (máx 10 horas).");
+
+        // 3. SE PASSOU NA TRAVA, CONTINUA O PROCESSO
         const btn = document.getElementById('btnEnviar');
         btn.innerText = "CALCULANDO...";
         btn.disabled = true;
         btn.style.opacity = "0.7";
 
-        // Salva para agilizar o próximo uso
         localStorage.setItem('run_user', document.getElementById('user_id').value);
         localStorage.setItem('run_age', document.getElementById('idade').value);
 
-     const dados = {
+        const dados = {
             user_id: document.getElementById('user_id').value,
-            tipo_atividade: document.getElementById('tipo_atividade').value, // <--- ADICIONE APENAS ESTA LINHA
-            idade: parseInt(document.getElementById('idade').value),
+            tipo_atividade: document.getElementById('tipo_atividade').value,
+            idade: idadeUser,
             nivel: document.getElementById('nivel').value,
-            km: parseFloat(document.getElementById('km').value),
-            tempo: parseFloat(document.getElementById('tempo').value),
-            calorias: parseFloat(document.getElementById('calorias').value),
+            km: kmUser,
+            tempo: tempoUser,
+            // A LINHA DE 'CALORIAS' FOI DELETADA DAQUI! O SERVIDOR VAI CALCULAR.
             esforco: parseInt(document.getElementById('esforco').value),
             clima: "Indefinido"
         };
+        
+        // ... (o resto da função fetch continua igualzinho)
 
         try {
             const req = await fetch('/registrar_treino', {
