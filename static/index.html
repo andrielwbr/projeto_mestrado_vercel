@@ -136,9 +136,9 @@
             <small class="text-muted" style="font-size: 10px;">Limite: Hoje ou até 7 dias atrás.</small>
         </div>
 
-        <div class="mb-3">
+     <div class="mb-3">
             <label>TIPO DE ATIVIDADE</label>
-            <select id="tipo_atividade" class="form-select">
+            <select id="tipo_atividade" class="form-select" onchange="atualizarNiveis()">
                 <option value="corrida" selected>🏃 Corrida</option>
                 <option value="caminhada">🚶 Caminhada</option>
             </select>
@@ -190,6 +190,26 @@
 <script>
 
 // --- TRAVA DE CALENDÁRIO (7 DIAS) ---
+    
+// --- ATUALIZA TEXTOS DO NÍVEL DE ACORDO COM A ATIVIDADE ---
+    function atualizarNiveis() {
+        const tipo = document.getElementById('tipo_atividade').value;
+        const selectNivel = document.getElementById('nivel');
+
+        if (tipo === 'caminhada') {
+            // Se for caminhada, muda os textos das opções
+            selectNivel.innerHTML = `
+                <option value="iniciante">Iniciante</option>
+                <option value="avancado">Já faço caminhadas</option>
+            `;
+        } else {
+            // Se for corrida, volta para o padrão original
+            selectNivel.innerHTML = `
+                <option value="iniciante">Iniciante</option>
+                <option value="avancado">Já corro</option>
+            `;
+        }
+    }
     document.addEventListener('DOMContentLoaded', () => {
         const campoData = document.getElementById('data_treino');
         
