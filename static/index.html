@@ -126,13 +126,20 @@
     <form onsubmit="event.preventDefault(); enviar();">
         
         <div class="mb-3">
-            <label>Seu Nickname</label>
-            <input type="text" id="user_id" class="form-control" placeholder="Ex: Andriel" required>
+            <label>SEU NICKNAME</label>
+            <input type="text" id="user_id" class="form-control" placeholder="Ex: andriel" required>
         </div>
 
+        <div class="mb-3">
+            <label>TIPO DE ATIVIDADE</label>
+            <select id="tipo_atividade" class="form-select">
+                <option value="corrida" selected>🏃 Corrida</option>
+                <option value="caminhada">🚶 Caminhada</option>
+            </select>
+        </div>
         <div class="row g-2">
             <div class="col-6">
-                <label>Idade</label>
+                <label>IDADE</label>
                 <input type="number" id="idade" class="form-control" placeholder="Anos" required>
             </div>
             <div class="col-6">
@@ -196,8 +203,9 @@
         localStorage.setItem('run_user', document.getElementById('user_id').value);
         localStorage.setItem('run_age', document.getElementById('idade').value);
 
-        const dados = {
+     const dados = {
             user_id: document.getElementById('user_id').value,
+            tipo_atividade: document.getElementById('tipo_atividade').value, // <--- ADICIONE APENAS ESTA LINHA
             idade: parseInt(document.getElementById('idade').value),
             nivel: document.getElementById('nivel').value,
             km: parseFloat(document.getElementById('km').value),
