@@ -72,7 +72,7 @@ def gerar_prescricao(treino, historico):
         msg = "Treino leve. Corpo nem sentiu."
         proximo_km = treino.km * 1.2 
         acao = "Pode treinar amanhã se quiser."
-        dias_descanso = 0 # Pode treinar logo a seguir
+        dias_descanso = 1 # Pode treinar logo a seguir
 
     # --- A MÁQUINA DO TEMPO (Cálculo da Data do Próximo Treino) ---
     # 1. Converter a string da data para matemática
