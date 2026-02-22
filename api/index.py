@@ -93,16 +93,18 @@ def registrar_treino(dados: TreinoInput):
         calorias_finais = round((dados.km * base_kcal) * fator_esforco)
         # ---------------------------------------------
 
-        # Salva no banco de dados com a caloria calculada pelo sistema
+        # Salva no banco de dados com todas as colunas novas
         supabase.table("treinos").insert({
             "user_id": dados.user_id.lower(),
+            "tipo_atividade": dados.tipo_atividade, # <--- ESSA LINHA É NOVA
             "idade": dados.idade,
             "nivel_experiencia": dados.nivel,
             "km_percorridos": dados.km,
             "tempo_gasto": dados.tempo,
-            "calorias": calorias_finais, # AQUI ENTRA O CÁLCULO MÁGICO
+            "calorias": calorias_finais, 
             "esforco_percebido": dados.esforco,
             "clima": dados.clima
+            # Não precisamos mandar o 'feedback_treino' agora, ele fica vazio (null) esperando a próxima atualização.
         }).execute()
 
         # ... (restante do código igual)
