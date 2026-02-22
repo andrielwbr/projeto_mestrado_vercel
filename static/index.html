@@ -196,8 +196,8 @@
 
         // 2. TRAVA DE SEGURANÇA (BLOQUEIA NÚMEROS ABSURDOS)
         if (idadeUser < 10 || idadeUser > 99) return alert("⚠️ Idade inválida. Insira um valor entre 10 e 99 anos.");
-        if (kmUser <= 0 || kmUser > 100) return alert("⚠️ Distância irreal. O limite do sistema é 100km por treino.");
-        if (tempoUser <= 0 || tempoUser > 600) return alert("⚠️ Tempo inválido. Insira o tempo real em minutos (máx 10 horas).");
+        if (kmUser <= 0 || kmUser > 50) return alert("⚠️ Distância irreal. O limite do sistema é 50km por treino.");
+        if (tempoUser <= 0 || tempoUser > 300) return alert("⚠️ Tempo inválido. Insira o tempo real em minutos (máx 5 horas).");
 
         // 3. SE PASSOU NA TRAVA, CONTINUA O PROCESSO
         const btn = document.getElementById('btnEnviar');
