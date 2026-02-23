@@ -170,9 +170,17 @@
             </div>
         </div>
 
-        <label>Sensação de Esforço: <span id="valEsforco" style="color: #fa4299; font-weight:bold;">5</span></label>
-        <input type="range" class="form-range" min="1" max="10" value="5" id="esforco" oninput="document.getElementById('valEsforco').innerText=this.value">
-
+        <div class="mb-4 mt-2">
+            <label>Sensação de Esforço: <span id="valEsforco" style="color: #fa4299; font-weight:bold; font-size: 16px;">5/10</span></label>
+            <input type="range" class="form-range" min="0" max="10" value="5" id="esforco" oninput="atualizarEsforco(this.value)">
+            
+            <div id="descEsforcoBox" style="background: #f8f9fa; border-left: 4px solid #f59e0b; padding: 12px 15px; border-radius: 8px; margin-top: 5px; transition: 0.3s;">
+                <strong id="tituloEsforco" style="color: #f59e0b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Moderado</strong>
+                <p id="textoEsforco" style="font-size: 11px; color: #666; margin: 4px 0 0 0; line-height: 1.4;">
+                    Conseguia falar por pouco tempo.<br>Respiração com maior dificuldade.<br>Dentro da sua zona de conforto, mas se esforçando.
+                </p>
+            </div>
+        </div>
         <button type="submit" id="btnEnviar" class="btn-gradient">ANALISAR PERFORMANCE</button>
     </form>
 
@@ -194,6 +202,48 @@
 // --- TRAVA DE CALENDÁRIO (7 DIAS) ---
     
 // --- ATUALIZA TEXTOS DO NÍVEL DE ACORDO COM A ATIVIDADE ---
+    
+    // 👇 COLE A FUNÇÃO EXATAMENTE AQUI 👇
+    function atualizarEsforco(valor) {
+        document.getElementById('valEsforco').innerText = valor + "/10";
+        
+        const titulo = document.getElementById('tituloEsforco');
+        const texto = document.getElementById('textoEsforco');
+        const box = document.getElementById('descEsforcoBox');
+        
+        valor = parseInt(valor);
+        
+        if (valor <= 3) {
+            titulo.innerText = "Confortável";
+            titulo.style.color = "#16a34a"; // Verde
+            box.style.borderLeftColor = "#16a34a";
+            texto.innerHTML = "Conseguia falar normalmente.<br>Respiração normal.<br>Sentia-se muito confortável.";
+        } else if (valor <= 6) {
+            titulo.innerText = "Moderado";
+            titulo.style.color = "#f59e0b"; // Amarelo
+            box.style.borderLeftColor = "#f59e0b";
+            texto.innerHTML = "Conseguia falar por pouco tempo.<br>Respiração com maior dificuldade.<br>Dentro da sua zona de conforto, mas se esforçando.";
+        } else if (valor <= 9) {
+            titulo.innerText = "Alto";
+            titulo.style.color = "#ea580c"; // Laranja
+            box.style.borderLeftColor = "#ea580c";
+            texto.innerHTML = "Mal conseguia falar.<br>Respiração pesada.<br>Fora da sua zona de conforto.";
+        } else {
+            titulo.innerText = "Esforço Máximo";
+            titulo.style.color = "#dc2626"; // Vermelho
+            box.style.borderLeftColor = "#dc2626";
+            texto.innerHTML = "No seu limite físico, com falta de ar.<br>Não conseguia falar / mal lembrava o próprio nome.";
+        }
+    }
+    // 👆 -------------------------------- 👆
+
+
+    // A sua função enviar() vai continuar logo abaixo
+    async function enviar() {
+        // ... (todo o código que envia os dados para o Python)
+    }
+
+
     function atualizarNiveis() {
         const tipo = document.getElementById('tipo_atividade').value;
         const selectNivel = document.getElementById('nivel');
