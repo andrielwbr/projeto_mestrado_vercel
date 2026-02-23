@@ -170,15 +170,19 @@
             </div>
         </div>
 
-        <div class="mb-4 mt-2">
+     <div class="mb-4 mt-2">
             <label>Sensação de Esforço: <span id="valEsforco" style="color: #fa4299; font-weight:bold; font-size: 16px;">5/10</span></label>
             <input type="range" class="form-range" min="0" max="10" value="5" id="esforco" oninput="atualizarEsforco(this.value)">
             
-            <div id="descEsforcoBox" style="background: #f8f9fa; border-left: 4px solid #f59e0b; padding: 12px 15px; border-radius: 8px; margin-top: 5px; transition: 0.3s;">
+            <div id="descEsforcoBox" style="background: #f8f9fa; border-left: 4px solid #f59e0b; padding: 12px 15px; border-radius: 8px; margin-top: 5px; transition: 0.3s; display: block;">
                 <strong id="tituloEsforco" style="color: #f59e0b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Moderado</strong>
                 <p id="textoEsforco" style="font-size: 11px; color: #666; margin: 4px 0 0 0; line-height: 1.4;">
                     Conseguia falar por pouco tempo.<br>Respiração com maior dificuldade.<br>Dentro da sua zona de conforto, mas se esforçando.
                 </p>
+            </div>
+            
+            <div class="text-end mt-1">
+                <a href="#" id="btnToggleEsforco" style="color: #999; font-size: 11px; text-decoration: underline;" onclick="toggleEsforco(event)">Ocultar detalhes</a>
             </div>
         </div>
         <button type="submit" id="btnEnviar" class="btn-gradient">ANALISAR PERFORMANCE</button>
@@ -378,6 +382,21 @@
             btn.innerText = "ANALISAR PERFORMANCE";
             btn.disabled = false;
             btn.style.opacity = "1";
+        }
+    }
+
+    // --- FUNÇÃO PARA OCULTAR/MOSTRAR OS DETALHES DO ESFORÇO ---
+    function toggleEsforco(event) {
+        event.preventDefault(); // Evita que a página pule
+        const box = document.getElementById('descEsforcoBox');
+        const btn = document.getElementById('btnToggleEsforco');
+        
+        if (box.style.display === 'none') {
+            box.style.display = 'block'; // Mostra a caixa
+            btn.innerText = 'Ocultar detalhes';
+        } else {
+            box.style.display = 'none'; // Esconde a caixa
+            btn.innerText = 'Mostrar detalhes';
         }
     }
 </script>
