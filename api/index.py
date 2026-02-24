@@ -18,8 +18,9 @@ supabase: Client = create_client(url, key)
 
 # --- ESTRUTURA DE ENTRADA (Agora com a data do treino) ---
 class TreinoInput(BaseModel):
+    email: str  # <--- NOVO CAMPO OBRIGATÓRIO
     user_id: str
-    data_treino: str  # Formato YYYY-MM-DD enviado pelo calendário
+    data_treino: str
     tipo_atividade: str
     idade: int
     nivel: str 
