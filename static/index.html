@@ -289,13 +289,48 @@
             clima: "Indefinido"
         };
         
+        // ...existing code...
+
         try {
             const req = await fetch('/api/registrar_treino', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(dados)
             });
-            const res = await req.json();
+            
+            // 👇 ADICIONE ISTO AQUI 👇
+            const texto = await req.text();
+            console.log("Status:", req.status);
+            console.log("Resposta bruta:", texto);
+            
+            let res;
+            try {
+                res = JSON.parse(texto);
+            } catch (e) {
+                alert("❌ Servidor retornou resposta inválida:\n" + texto.substring(0, 200));
+                btn.innerText = "ANALISAR PERFORMANCE"; 
+                btn.disabled = false; 
+                btn.style.opacity = "1";
+                return;
+            }
+
+            if (!req.ok) {
+                alert("Erro no Servidor: " + JSON.stringify(res.detail || res));
+                btn.innerText = "ANALISAR PERFORMANCE"; btn.disabled = false; btn.style.opacity = "1";
+                return;
+            }
+
+            if (res.erro) {
+                alert("⚠️ " + res.erro); 
+                btn.innerText = "ANALISAR PERFORMANCE"; btn.disabled = false; btn.style.opacity = "1";
+                return; 
+            }
+            
+            // CONSTRÓI A VISUALIZAÇÃO DA IA
+            const divRes = document.getElementById('resultado');
+            divRes.style.display = 'block';
+            
+// ...existing code...
 
             if (!req.ok) {
                 alert("Erro no Servidor: " + JSON.stringify(res.detail || res));
