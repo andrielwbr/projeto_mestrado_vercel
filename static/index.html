@@ -347,16 +347,24 @@
         }
     }
 
-    // --- 4. FUNÇÃO DE FEEDBACK (MACHINE LEARNING) ---
+    // --- 4. FUNÇÃO DE FEEDBACK (MACHINE LEARNING) CORRIGIDA ---
     async function enviarFeedback(nota) {
-        const email = localStorage.getItem('run_email');
+        // Pega o e-mail e FORÇA TUDO PARA MINÚSCULO (O Segredo para bater com o banco)
+        const emailRaw = localStorage.getItem('run_email');
+        if (!emailRaw) {
+            alert("Erro: E-mail não encontrado. Envie um treino primeiro.");
+            return;
+        }
+        const email = emailRaw.toLowerCase(); 
         const dataTreino = document.getElementById('data_treino').value;
 
+        // Muda visualmente para avisar que está pensando
         const bloco = document.getElementById('blocoFeedback');
-        bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback salvo! A IA está aprendendo com você.</p>`;
+        bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #f59e0b; font-weight: bold; font-size: 14px;">⏳ Salvando feedback no banco de dados...</p>`;
 
         try {
-            await fetch('/registrar_feedback', {
+            // Envia para o Python
+            const req = await fetch('/registrar_feedback', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -365,7 +373,19 @@
                     feedback: nota
                 })
             });
+            
+            const res = await req.json();
+
+            // AGORA SIM: Só dá sucesso se o Python (Supabase) confirmar!
+            if (res.sucesso) {
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback salvo! A IA está aprendendo com você.</p>`;
+            } else {
+                // Se der erro lá no banco, ele te avisa na tela o motivo real
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Erro do Servidor: ${res.erro || 'Treino não encontrado'}</p>`;
+            }
+
         } catch (e) {
+            bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Erro de comunicação com a API.</p>`;
             console.error("Erro ao salvar feedback", e);
         }
     }
