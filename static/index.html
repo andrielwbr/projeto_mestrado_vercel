@@ -191,6 +191,23 @@
             
             <div class="text-end mt-1">
                 <a href="#" id="btnToggleEsforco" style="color: #999; font-size: 11px; text-decoration: underline;" onclick="toggleEsforco(event)">Ocultar detalhes</a>
+            <div id="resultado" class="mt-4 p-3 rounded" style="display: none; background: #f8f9fa; border: 1px solid #ddd;"></div>
+        
+        <div class="text-center mt-2">
+            <a href="#" id="btnToggleDetalhes" style="display: none; color: #666; font-size: 13px; text-decoration: underline; font-weight: bold;" onclick="toggleDetalhes(event)">Ocultar detalhes</a>
+        </div>
+
+        <div id="blocoFeedback" class="mt-4 text-center p-3 rounded" style="display: none; background: #e0f2fe; border: 1px dashed #38bdf8;">
+            <p class="mb-2" style="font-size: 14px; font-weight: bold; color: #0369a1;">🧠 Como seu corpo reagiu ao treino de hoje?</p>
+            <p style="font-size: 11px; color: #0284c7; margin-top: -5px; margin-bottom: 12px;">Isso ajuda a IA a aprender seus limites.</p>
+            
+            <div class="d-flex justify-content-center gap-2">
+                <button onclick="enviarFeedback('Excelente (Sem dores)')" class="btn btn-sm" style="background: #16a34a; color: white; border-radius: 20px;">🟢 Excelente</button>
+                <button onclick="enviarFeedback('Cansado (Fadiga normal)')" class="btn btn-sm" style="background: #f59e0b; color: white; border-radius: 20px;">🟡 Cansado</button>
+                <button onclick="enviarFeedback('Com Dor (Sinal de lesão)')" class="btn btn-sm" style="background: #dc2626; color: white; border-radius: 20px;">🔴 Com Dor</button>
+            </div>
+        </div>
+            
             </div>
         </div>
         <button type="submit" id="btnEnviar" class="btn-gradient">ANALISAR PERFORMANCE</button>
@@ -374,6 +391,7 @@
             // Exibe Resultado
             const divRes = document.getElementById('resultado');
             divRes.style.display = 'block';
+            document.getElementById('blocoFeedback').style.display = "block"; // Revela os botões
             divRes.scrollIntoView({behavior: 'smooth'});
 
             // Cores inteligentes
@@ -420,6 +438,32 @@
         if(localStorage.getItem('run_user')) document.getElementById('user_id').value = localStorage.getItem('run_user');
         
         // ... (seus outros códigos de data etc)
+    }
+
+    // --- FUNÇÃO DE FEEDBACK PARA O MACHINE LEARNING ---
+    async function enviarFeedback(nota) {
+        // Pega os dados do navegador
+        const email = localStorage.getItem('run_email');
+        const dataTreino = document.getElementById('data_treino').value;
+
+        // Troca os botões por uma mensagem de sucesso imediatamente
+        const bloco = document.getElementById('blocoFeedback');
+        bloco.innerHTML = `<p class="mt-2" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback salvo! A IA está aprendendo com você.</p>`;
+
+        // Envia silenciosamente para o Python
+        try {
+            await fetch('/registrar_feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    email: email,
+                    data_treino: dataTreino,
+                    feedback: nota
+                })
+            });
+        } catch (e) {
+            console.error("Erro ao salvar feedback", e);
+        }
     }
 </script>
 

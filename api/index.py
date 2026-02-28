@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware # <--- SEGURANÇA: IMPORTAÇÃO
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import os
@@ -6,19 +7,29 @@ from supabase import create_client, Client
 
 app = FastAPI()
 
+# --- 🛡️ SEGURANÇA (CORS) ---
+# Isso impede que sites falsos mandem dados para o seu banco
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # DICA: Quando o site estiver pronto, troque ["*"] pela sua URL da Vercel
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"],
+)
+
 # --- CONEXÃO COM O BANCO ---
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 
 if not url:
-    url = "SUA_URL_SUPABASE" # Apenas para teste local
-    key = "SUA_KEY_SUPABASE"
+    url = "URL_FALSA"
+    key = "KEY_FALSA"
 
 supabase: Client = create_client(url, key)
 
-# --- ESTRUTURA DE ENTRADA (Agora com E-mail obrigatório) ---
+# --- ESTRUTURAS DE DADOS ---
 class TreinoInput(BaseModel):
-    email: str        # <--- O NOVO CAMPO OBRIGATÓRIO
+    email: str
     user_id: str
     data_treino: str
     tipo_atividade: str
@@ -29,7 +40,12 @@ class TreinoInput(BaseModel):
     esforco: int
     clima: str
 
-# --- CÉREBRO DA IA (Lógica de recuperação) ---
+class FeedbackInput(BaseModel): # <--- NOVA ESTRUTURA PARA A NOTA DA PROVA
+    email: str
+    data_treino: str
+    feedback: str
+
+# --- CÉREBRO DA IA ---
 def gerar_prescricao(treino, historico):
     if treino.tipo_atividade == "caminhada":
         fator_calorico = 50  
@@ -61,7 +77,6 @@ def gerar_prescricao(treino, historico):
         proximo_km = treino.km * 0.5 
         acao = "Descanso total ou alongamento."
         dias_descanso = 2 
-    
     elif 0.8 <= ratio <= limite_lesao:
         status = "🟢 ZONA IDEAL (Evoluindo)"
         msg = f"Treino perfeito de {treino.tipo_atividade}."
@@ -75,7 +90,6 @@ def gerar_prescricao(treino, historico):
         acao = "Pode treinar amanhã se quiser."
         dias_descanso = 1 
 
-    # --- MÁQUINA DO TEMPO (Cálculo de Datas) ---
     data_treino_obj = datetime.strptime(treino.data_treino, "%Y-%m-%d").date()
     hoje = (datetime.utcnow() - timedelta(hours=3)).date()
     data_recuperacao = data_treino_obj + timedelta(days=dias_descanso)
@@ -97,27 +111,23 @@ def gerar_prescricao(treino, historico):
         "proximo_treino": texto_final
     }
 
-# --- ROTA DE REGISTRO ---
+# --- ROTA 1: REGISTRAR O TREINO ---
 @app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
-        # 1. VERIFICA SE JÁ TREINOU NAQUELE DIA (Usando o E-MAIL)
         historico_completo = supabase.table("treinos").select("data_hora").eq("email", dados.email).execute()
-        
         if historico_completo.data:
             for t in historico_completo.data:
                 if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
                     data_pt = f"{dados.data_treino[-2:]}/{dados.data_treino[5:7]}"
                     return {"erro": f"Já existe um treino registrado nesta data ({data_pt}) para este e-mail!"}
 
-        # 2. CALCULA CALORIAS
         base_kcal = 50 if dados.tipo_atividade == "caminhada" else 70
         fator_esforco = 1 + ((dados.esforco - 5) * 0.05) 
         calorias_calculadas = round((dados.km * base_kcal) * fator_esforco)
 
-        # 3. SALVA NO BANCO (Agora INCLUINDO O EMAIL)
         supabase.table("treinos").insert({
-            "email": dados.email,          # <--- AQUI ESTAVA FALTANDO!
+            "email": dados.email,
             "user_id": dados.user_id,      
             "tipo_atividade": dados.tipo_atividade,
             "idade": dados.idade,
@@ -130,13 +140,32 @@ def registrar_treino(dados: TreinoInput):
             "data_hora": f"{dados.data_treino}T12:00:00Z"
         }).execute()
 
-        # 4. BUSCA HISTÓRICO PELO EMAIL PARA A IA ANALISAR
         res = supabase.table("treinos").select("*").eq("email", dados.email).order("data_hora", desc=True).limit(28).execute()
-        
         analise = gerar_prescricao(dados, res.data if res.data else [])
-
         return {"analise": analise}
-
     except Exception as e:
-        print(f"Erro detalhado: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- ROTA 2: REGISTRAR O FEEDBACK (A NOTA DA PROVA) ---
+@app.post("/registrar_feedback")
+def registrar_feedback(dados: FeedbackInput):
+    try:
+        # 1. Acha qual é o ID do treino de hoje
+        registros = supabase.table("treinos").select("id, data_hora").eq("email", dados.email).execute()
+        treino_id = None
+        
+        if registros.data:
+            for t in registros.data:
+                if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
+                    treino_id = t['id']
+                    break
+                    
+        if not treino_id:
+            return {"erro": "Treino não encontrado."}
+
+        # 2. Atualiza a coluna de feedback
+        supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
+        return {"sucesso": True}
+        
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
