@@ -348,29 +348,37 @@
     }
 
    async function enviarFeedback(nota) {
-    // ... (seu código inicial de pegar email e data)
-    try {
-        const req = await fetch('/api/registrar_feedback', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email: email, data_treino: dataTreino, feedback: nota })
-        });
+        // --- ADICIONADO: Definição das variáveis que estavam faltando ---
+        const emailRaw = localStorage.getItem('run_email');
+        if (!emailRaw) return alert("Erro: E-mail não encontrado. Faça uma análise primeiro.");
         
-        // Em vez de ir direto para o .json(), verificamos o texto antes
-        const texto = await req.text(); 
-        console.log("Resposta bruta do servidor:", texto);
+        const email = emailRaw.toLowerCase().trim(); 
+        const dataTreino = document.getElementById('data_treino').value;
+        const bloco = document.getElementById('blocoFeedback');
+        
+        // Sinaliza que está processando
+        bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #f59e0b; font-weight: bold; font-size: 14px;">⏳ Salvando feedback...</p>`;
 
-        if (req.ok) {
-            const res = JSON.parse(texto); // Converte para JSON manualmente
-            bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold;">✅ Feedback salvo!</p>`;
-        } else {
-            bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold;">❌ Erro no Servidor: ${texto}</p>`;
+        try {
+            const req = await fetch('/api/registrar_feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email: email, data_treino: dataTreino, feedback: nota })
+            });
+            
+            const texto = await req.text(); 
+            console.log("Resposta do servidor:", texto);
+
+            if (req.ok) {
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback salvo com sucesso!</p>`;
+            } else {
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Servidor recusou: ${texto}</p>`;
+            }
+        } catch (e) {
+            console.error(e);
+            bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-size: 14px;">❌ Erro de conexão ou processamento.</p>`;
         }
-    } catch (e) {
-        console.error(e);
-        bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626;">❌ Erro de processamento.</p>`;
     }
-}
 </script>
 
 </body>
