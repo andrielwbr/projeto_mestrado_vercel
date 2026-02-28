@@ -290,7 +290,7 @@
         };
         
         try {
-            const req = await fetch('/registrar_treino', {
+            const req = await fetch('/api/registrar_treino', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(dados)
@@ -360,7 +360,7 @@
         bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #f59e0b; font-weight: bold; font-size: 14px;">⏳ Forçando comunicação...</p>`;
 
         try {
-            const req = await fetch('/registrar_feedback', {
+            const req = await fetch('/api/registrar_feedback', {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',

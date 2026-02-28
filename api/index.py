@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware # <--- SEGURANÇA: IMPORTAÇÃO
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import os
@@ -11,7 +11,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
-    allow_credentials=False, # <--- O ERRO ESTAVA AQUI! Mudamos para False.
+    allow_credentials=False,
     allow_methods=["*"], 
     allow_headers=["*"],
 )
@@ -39,7 +39,7 @@ class TreinoInput(BaseModel):
     esforco: int
     clima: str
 
-class FeedbackInput(BaseModel): # <--- NOVA ESTRUTURA PARA A NOTA DA PROVA
+class FeedbackInput(BaseModel):
     email: str
     data_treino: str
     feedback: str
@@ -110,8 +110,8 @@ def gerar_prescricao(treino, historico):
         "proximo_treino": texto_final
     }
 
-# --- ROTA 1: REGISTRAR O TREINO ---
-@app.post("/registrar_treino")
+# 👇 A MUDANÇA ESTÁ AQUI (Adicionado /api/ no caminho) 👇
+@app.post("/api/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
         historico_completo = supabase.table("treinos").select("data_hora").eq("email", dados.email).execute()
@@ -145,11 +145,10 @@ def registrar_treino(dados: TreinoInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- ROTA 2: REGISTRAR O FEEDBACK (A NOTA DA PROVA) ---
-@app.post("/registrar_feedback")
+# 👇 A MUDANÇA ESTÁ AQUI (Adicionado /api/ no caminho) 👇
+@app.post("/api/registrar_feedback")
 def registrar_feedback(dados: FeedbackInput):
     try:
-        # 1. Acha qual é o ID do treino de hoje
         registros = supabase.table("treinos").select("id, data_hora").eq("email", dados.email).execute()
         treino_id = None
         
@@ -162,7 +161,6 @@ def registrar_feedback(dados: FeedbackInput):
         if not treino_id:
             return {"erro": "Treino não encontrado."}
 
-        # 2. Atualiza a coluna de feedback
         supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
         return {"sucesso": True}
         
