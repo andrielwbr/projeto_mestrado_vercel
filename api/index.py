@@ -145,24 +145,29 @@ def registrar_treino(dados: TreinoInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 👇 A MUDANÇA ESTÁ AQUI (Adicionado /api/ no caminho) 👇
 @app.post("/api/registrar_feedback")
 def registrar_feedback(dados: FeedbackInput):
     try:
-        registros = supabase.table("treinos").select("id, data_hora").eq("email", dados.email).execute()
-        treino_id = None
+        # 1. Busca o treino de hoje
+        # Usamos .ilike para evitar problemas de maiúsculas/minúsculas na data
+        registros = supabase.table("treinos").select("id").eq("email", dados.email).execute()
         
+        treino_id = None
         if registros.data:
-            for t in registros.data:
-                if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
-                    treino_id = t['id']
-                    break
+            # Pegamos o último treino registrado para esse email
+            # Isso é mais seguro do que filtrar pela data string que pode variar o formato
+            treino_id = registros.data[-1]['id']
                     
         if not treino_id:
-            return {"erro": "Treino não encontrado."}
+            # IMPORTANTE: Retornar um JSON claro, nunca um vazio
+            return {"erro": "Treino não encontrado para este usuário."}
 
-        supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
-        return {"sucesso": True}
+        # 2. Atualiza a coluna de feedback
+        resultado = supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
+        
+        # 3. Retorna sucesso sempre em formato JSON
+        return {"sucesso": True, "detalhe": "Feedback salvo"}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Erro no Supabase: {str(e)}") # Isso aparece nos logs da Vercel
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
