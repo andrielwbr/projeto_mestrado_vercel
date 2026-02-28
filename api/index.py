@@ -8,11 +8,10 @@ from supabase import create_client, Client
 app = FastAPI()
 
 # --- 🛡️ SEGURANÇA (CORS) ---
-# Isso impede que sites falsos mandem dados para o seu banco
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # DICA: Quando o site estiver pronto, troque ["*"] pela sua URL da Vercel
-    allow_credentials=True,
+    allow_origins=["*"], 
+    allow_credentials=False, # <--- O ERRO ESTAVA AQUI! Mudamos para False.
     allow_methods=["*"], 
     allow_headers=["*"],
 )
