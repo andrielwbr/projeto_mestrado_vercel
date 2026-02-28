@@ -98,14 +98,21 @@ def gerar_prescricao(treino, historico):
 @app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
-        # --- MUDANÇA FUNCIONAL: Trava de 7 dias ---
+        # --- MUDANÇA FUNCIONAL 1: Trava de 7 dias ---
         data_treino_obj = datetime.strptime(dados.data_treino, "%Y-%m-%d").date()
         hoje = datetime.utcnow().date()
         diferenca_dias = (hoje - data_treino_obj).days
         
         if diferenca_dias < 0 or diferenca_dias > 7:
             return {"erro": "O treino deve ser de hoje ou de até 7 dias atrás."}
-        # ------------------------------------------
+        
+        # --- MUDANÇA FUNCIONAL 2: Trava de Distância e Tempo ---
+        if dados.km <= 0 or dados.km > 50:
+            return {"erro": "A distância limite para registro é de 50 km."}
+        
+        if dados.tempo <= 0 or dados.tempo > 300: # 300 minutos = 5 horas
+            return {"erro": "O tempo limite para registro é de 300 minutos (5 horas)."}
+        # -------------------------------------------------------
 
         historico_completo = supabase.table("treinos").select("data_hora").eq("email", dados.email).execute()
         if historico_completo.data:
@@ -131,6 +138,8 @@ def registrar_treino(dados: TreinoInput):
             "clima": dados.clima,
             "data_hora": f"{dados.data_treino}T12:00:00Z"
         }).execute()
+        
+        # O resto da função continua exatamente igual...
         
         # O resto da função continua exatamente igual...
 
