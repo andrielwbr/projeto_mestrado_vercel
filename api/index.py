@@ -1,21 +1,10 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import os
 from supabase import create_client, Client
 
 app = FastAPI()
-
-# --- 🛡️ SEGURANÇA (CORS) ---
-# Isso permite que o seu site (Frontend) se comunique com o servidor (Backend)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=False,
-    allow_methods=["*"], 
-    allow_headers=["*"],
-)
 
 # --- CONEXÃO COM O BANCO ---
 url: str = os.environ.get("SUPABASE_URL")
@@ -39,11 +28,6 @@ class TreinoInput(BaseModel):
     tempo: float
     esforco: int
     clima: str
-
-class FeedbackInput(BaseModel):
-    email: str
-    data_treino: str
-    feedback: str
 
 # --- CÉREBRO DA IA ---
 def gerar_prescricao(treino, historico):
@@ -111,8 +95,7 @@ def gerar_prescricao(treino, historico):
         "proximo_treino": texto_final
     }
 
-# --- ROTA 1: REGISTRAR O TREINO ---
-@app.post("/api/registrar_treino")
+@app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
         historico_completo = supabase.table("treinos").select("data_hora").eq("email", dados.email).execute()
@@ -143,29 +126,5 @@ def registrar_treino(dados: TreinoInput):
         res = supabase.table("treinos").select("*").eq("email", dados.email).order("data_hora", desc=True).limit(28).execute()
         analise = gerar_prescricao(dados, res.data if res.data else [])
         return {"analise": analise}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# --- ROTA 2: REGISTRAR O FEEDBACK ---
-@app.post("/api/registrar_feedback")
-def registrar_feedback(dados: FeedbackInput):
-    try:
-        # Busca o ID do treino para atualizar
-        registros = supabase.table("treinos").select("id, data_hora").eq("email", dados.email).execute()
-        treino_id = None
-        
-        if registros.data:
-            for t in registros.data:
-                if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
-                    treino_id = t['id']
-                    break
-                    
-        if not treino_id:
-            return {"erro": "Treino não encontrado."}
-
-        # Atualiza a nota do feedback
-        supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
-        return {"sucesso": True}
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

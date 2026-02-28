@@ -170,29 +170,16 @@
     </form>
     
     <div id="resultado" class="mt-4 p-3 rounded" style="display: none; background: #f8f9fa; border: 1px solid #ddd; animation: fadeIn 0.6s;">
-        </div>
+    </div>
 
     <div class="text-center mt-2">
         <a href="#" id="btnToggleDetalhes" style="display: none; color: #666; font-size: 13px; text-decoration: underline; font-weight: bold;" onclick="toggleDetalhes(event)">Ocultar análise</a>
     </div>
 
-    <div id="blocoFeedback" class="mt-4 text-center p-3 rounded" style="display: none; background: #e0f2fe; border: 1px dashed #38bdf8; animation: fadeIn 0.6s;">
-        <p class="mb-2" style="font-size: 14px; font-weight: bold; color: #0369a1;">🧠 Como seu corpo reagiu a este treino?</p>
-        <p style="font-size: 11px; color: #0284c7; margin-top: -5px; margin-bottom: 12px;">Isso ajuda a IA a aprender seus limites.</p>
-        
-        <div class="d-flex justify-content-center gap-2">
-            <button onclick="enviarFeedback('Excelente (Sem dores)')" class="btn btn-sm" style="background: #16a34a; color: white; border-radius: 20px;">🟢 Excelente</button>
-            <button onclick="enviarFeedback('Cansado (Fadiga normal)')" class="btn btn-sm" style="background: #f59e0b; color: white; border-radius: 20px;">🟡 Cansado</button>
-            <button onclick="enviarFeedback('Com Dor (Sinal de lesão)')" class="btn btn-sm" style="background: #dc2626; color: white; border-radius: 20px;">🔴 Com Dor</button>
-        </div>
-    </div>
-
 </div>
 
 <script>
-    // --- 1. CONFIGURAÇÕES INICIAIS AO CARREGAR A PÁGINA ---
     document.addEventListener('DOMContentLoaded', () => {
-        // Trava do calendário
         const campoData = document.getElementById('data_treino');
         const hoje = new Date();
         const seteDiasAtras = new Date();
@@ -202,13 +189,11 @@
         campoData.min = formatarData(seteDiasAtras);
         campoData.value = formatarData(hoje);
 
-        // Carrega dados salvos do navegador
         if(localStorage.getItem('run_email')) document.getElementById('user_email').value = localStorage.getItem('run_email');
         if(localStorage.getItem('run_user')) document.getElementById('user_id').value = localStorage.getItem('run_user');
         if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
     });
 
-    // --- 2. FUNÇÕES DE INTERFACE VISUAL ---
     function atualizarNiveis() {
         const tipo = document.getElementById('tipo_atividade').value;
         const selectNivel = document.getElementById('nivel');
@@ -257,7 +242,6 @@
         else { divRes.style.display = 'none'; btn.innerText = 'Mostrar análise'; }
     }
 
-    // --- 3. FUNÇÃO PRINCIPAL: ENVIAR PARA A IA ---
     async function enviar() {
         const idadeUser = parseInt(document.getElementById('idade').value);
         const kmUser = parseFloat(document.getElementById('km').value);
@@ -289,30 +273,13 @@
             clima: "Indefinido"
         };
         
-        // ...existing code...
-
         try {
-            const req = await fetch('/api/registrar_treino', {
+            const req = await fetch('/registrar_treino', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(dados)
             });
-            
-            // 👇 ADICIONE ISTO AQUI 👇
-            const texto = await req.text();
-            console.log("Status:", req.status);
-            console.log("Resposta bruta:", texto);
-            
-            let res;
-            try {
-                res = JSON.parse(texto);
-            } catch (e) {
-                alert("❌ Servidor retornou resposta inválida:\n" + texto.substring(0, 200));
-                btn.innerText = "ANALISAR PERFORMANCE"; 
-                btn.disabled = false; 
-                btn.style.opacity = "1";
-                return;
-            }
+            const res = await req.json();
 
             if (!req.ok) {
                 alert("Erro no Servidor: " + JSON.stringify(res.detail || res));
@@ -326,30 +293,10 @@
                 return; 
             }
             
-            // CONSTRÓI A VISUALIZAÇÃO DA IA
             const divRes = document.getElementById('resultado');
             divRes.style.display = 'block';
             
-// ...existing code...
-
-            if (!req.ok) {
-                alert("Erro no Servidor: " + JSON.stringify(res.detail || res));
-                btn.innerText = "ANALISAR PERFORMANCE"; btn.disabled = false; btn.style.opacity = "1";
-                return;
-            }
-
-            if (res.erro) {
-                alert("⚠️ " + res.erro); 
-                btn.innerText = "ANALISAR PERFORMANCE"; btn.disabled = false; btn.style.opacity = "1";
-                return; 
-            }
-            
-            // CONSTRÓI A VISUALIZAÇÃO DA IA
-            const divRes = document.getElementById('resultado');
-            divRes.style.display = 'block';
-            
-            // Define a cor baseada no status
-            let corStatus = "#f59e0b"; // amarelo padrao
+            let corStatus = "#f59e0b"; 
             if(res.analise.status.includes('🔴')) corStatus = "#dc2626";
             if(res.analise.status.includes('🟢')) corStatus = "#16a34a";
 
@@ -368,9 +315,7 @@
                 </div>
             `;
 
-            // Mostra botões e desce a tela
             document.getElementById('btnToggleDetalhes').style.display = "inline-block";
-            document.getElementById('blocoFeedback').style.display = "block"; 
             divRes.scrollIntoView({behavior: 'smooth', block: 'end'});
 
         } catch (e) {
@@ -379,39 +324,6 @@
             btn.innerText = "ANALISAR PERFORMANCE";
             btn.disabled = false;
             btn.style.opacity = "1";
-        }
-    }
-
-   async function enviarFeedback(nota) {
-        // --- ADICIONADO: Definição das variáveis que estavam faltando ---
-        const emailRaw = localStorage.getItem('run_email');
-        if (!emailRaw) return alert("Erro: E-mail não encontrado. Faça uma análise primeiro.");
-        
-        const email = emailRaw.toLowerCase().trim(); 
-        const dataTreino = document.getElementById('data_treino').value;
-        const bloco = document.getElementById('blocoFeedback');
-        
-        // Sinaliza que está processando
-        bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #f59e0b; font-weight: bold; font-size: 14px;">⏳ Salvando feedback...</p>`;
-
-        try {
-            const req = await fetch('/api/registrar_feedback', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email: email, data_treino: dataTreino, feedback: nota })
-            });
-            
-            const texto = await req.text(); 
-            console.log("Resposta do servidor:", texto);
-
-            if (req.ok) {
-                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback salvo com sucesso!</p>`;
-            } else {
-                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Servidor recusou: ${texto}</p>`;
-            }
-        } catch (e) {
-            console.error(e);
-            bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-size: 14px;">❌ Erro de conexão ou processamento.</p>`;
         }
     }
 </script>
