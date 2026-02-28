@@ -8,6 +8,7 @@ from supabase import create_client, Client
 app = FastAPI()
 
 # --- 🛡️ SEGURANÇA (CORS) ---
+# Isso permite que o seu site (Frontend) se comunique com o servidor (Backend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -110,7 +111,7 @@ def gerar_prescricao(treino, historico):
         "proximo_treino": texto_final
     }
 
-# 👇 A MUDANÇA ESTÁ AQUI (Adicionado /api/ no caminho) 👇
+# --- ROTA 1: REGISTRAR O TREINO ---
 @app.post("/api/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
@@ -145,29 +146,26 @@ def registrar_treino(dados: TreinoInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- ROTA 2: REGISTRAR O FEEDBACK ---
 @app.post("/api/registrar_feedback")
 def registrar_feedback(dados: FeedbackInput):
     try:
-        # 1. Busca o treino de hoje
-        # Usamos .ilike para evitar problemas de maiúsculas/minúsculas na data
-        registros = supabase.table("treinos").select("id").eq("email", dados.email).execute()
-        
+        # Busca o ID do treino para atualizar
+        registros = supabase.table("treinos").select("id, data_hora").eq("email", dados.email).execute()
         treino_id = None
+        
         if registros.data:
-            # Pegamos o último treino registrado para esse email
-            # Isso é mais seguro do que filtrar pela data string que pode variar o formato
-            treino_id = registros.data[-1]['id']
+            for t in registros.data:
+                if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
+                    treino_id = t['id']
+                    break
                     
         if not treino_id:
-            # IMPORTANTE: Retornar um JSON claro, nunca um vazio
-            return {"erro": "Treino não encontrado para este usuário."}
+            return {"erro": "Treino não encontrado."}
 
-        # 2. Atualiza a coluna de feedback
-        resultado = supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
-        
-        # 3. Retorna sucesso sempre em formato JSON
-        return {"sucesso": True, "detalhe": "Feedback salvo"}
+        # Atualiza a nota do feedback
+        supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
+        return {"sucesso": True}
         
     except Exception as e:
-        print(f"Erro no Supabase: {str(e)}") # Isso aparece nos logs da Vercel
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
