@@ -176,6 +176,16 @@
         <a href="#" id="btnToggleDetalhes" style="display: none; color: #666; font-size: 13px; text-decoration: underline; font-weight: bold;" onclick="toggleDetalhes(event)">Ocultar análise</a>
     </div>
 
+    <div id="blocoFeedback" class="mt-4 text-center p-3 rounded" style="display: none; background: #e0f2fe; border: 1px dashed #38bdf8; animation: fadeIn 0.6s;">
+        <p class="mb-2" style="font-size: 14px; font-weight: bold; color: #0369a1;">🧠 Como o seu corpo reagiu a este treino?</p>
+        <p style="font-size: 11px; color: #0284c7; margin-top: -5px; margin-bottom: 12px;">Isto ajuda a IA a aprender os seus limites.</p>
+        <div class="d-flex justify-content-center gap-2">
+            <button onclick="enviarFeedback('Excelente (Sem dores)')" class="btn btn-sm" style="background: #16a34a; color: white; border-radius: 20px;">🟢 Excelente</button>
+            <button onclick="enviarFeedback('Cansado (Fadiga normal)')" class="btn btn-sm" style="background: #f59e0b; color: white; border-radius: 20px;">🟡 Cansado</button>
+            <button onclick="enviarFeedback('Com Dor (Sinal de lesão)')" class="btn btn-sm" style="background: #dc2626; color: white; border-radius: 20px;">🔴 Com Dor</button>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -269,8 +279,8 @@
             nivel: document.getElementById('nivel').value,
             km: kmUser,
             tempo: tempoUser,
-            esforco: parseInt(document.getElementById('esforco').value),
-            clima: "Indefinido"
+            esforco: parseInt(document.getElementById('esforco').value)
+            // MUDANÇA FUNCIONAL: O campo 'clima: "Indefinido"' foi removido daqui.
         };
         
         try {
@@ -316,6 +326,10 @@
             `;
 
             document.getElementById('btnToggleDetalhes').style.display = "inline-block";
+            
+            // MUDANÇA FUNCIONAL: Mostra o bloco de feedback após a análise da IA terminar.
+            document.getElementById('blocoFeedback').style.display = "block"; 
+            
             divRes.scrollIntoView({behavior: 'smooth', block: 'end'});
 
         } catch (e) {
@@ -324,6 +338,37 @@
             btn.innerText = "ANALISAR PERFORMANCE";
             btn.disabled = false;
             btn.style.opacity = "1";
+        }
+    }
+
+    // --- MUDANÇA FUNCIONAL: Função de envio de feedback adicionada no final do código JavaScript ---
+    // Recupera o email e a data para associar corretamente o feedback ao treino no banco de dados.
+    async function enviarFeedback(nota) {
+        const emailRaw = localStorage.getItem('run_email');
+        if (!emailRaw) return alert("Erro: E-mail não encontrado. Faça uma análise primeiro.");
+        
+        const email = emailRaw.toLowerCase().trim(); 
+        const dataTreino = document.getElementById('data_treino').value;
+        const bloco = document.getElementById('blocoFeedback');
+        
+        bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #f59e0b; font-weight: bold; font-size: 14px;">⏳ A guardar feedback...</p>`;
+
+        try {
+            const req = await fetch('/registrar_feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email: email, data_treino: dataTreino, feedback: nota })
+            });
+            
+            const res = await req.json();
+
+            if (req.ok && res.sucesso) {
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback guardado com sucesso!</p>`;
+            } else {
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Erro: ${res.erro || "Falha no servidor."}</p>`;
+            }
+        } catch (e) {
+            bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-size: 14px;">❌ Erro de conexão ou processamento.</p>`;
         }
     }
 </script>

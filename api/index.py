@@ -27,9 +27,14 @@ class TreinoInput(BaseModel):
     km: float
     tempo: float
     esforco: int
-    clima: str
+    # MUDANÇA FUNCIONAL: 'clima: str' foi removido para poupar processamento.
 
-# --- CÉREBRO DA IA ---
+class FeedbackInput(BaseModel):
+    email: str
+    data_treino: str
+    feedback: str
+
+# --- CÉREBRO DA IA (Intacto) ---
 def gerar_prescricao(treino, historico):
     if treino.tipo_atividade == "caminhada":
         fator_calorico = 50  
@@ -98,28 +103,24 @@ def gerar_prescricao(treino, historico):
 @app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
-        # --- MUDANÇA FUNCIONAL 1: Trava de 7 dias ---
+        # MUDANÇA FUNCIONAL: Trava de 7 dias, 50km e 5h. Garante que a IA não receba dados absurdos.
         data_treino_obj = datetime.strptime(dados.data_treino, "%Y-%m-%d").date()
         hoje = datetime.utcnow().date()
         diferenca_dias = (hoje - data_treino_obj).days
         
         if diferenca_dias < 0 or diferenca_dias > 7:
             return {"erro": "O treino deve ser de hoje ou de até 7 dias atrás."}
-        
-        # --- MUDANÇA FUNCIONAL 2: Trava de Distância e Tempo ---
         if dados.km <= 0 or dados.km > 50:
-            return {"erro": "A distância limite para registro é de 50 km."}
-        
-        if dados.tempo <= 0 or dados.tempo > 300: # 300 minutos = 5 horas
-            return {"erro": "O tempo limite para registro é de 300 minutos (5 horas)."}
-        # -------------------------------------------------------
+            return {"erro": "A distância limite para registo é de 50 km."}
+        if dados.tempo <= 0 or dados.tempo > 300:
+            return {"erro": "O tempo limite para registo é de 300 minutos (5 horas)."}
 
         historico_completo = supabase.table("treinos").select("data_hora").eq("email", dados.email).execute()
         if historico_completo.data:
             for t in historico_completo.data:
                 if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
                     data_pt = f"{dados.data_treino[-2:]}/{dados.data_treino[5:7]}"
-                    return {"erro": f"Já existe um treino registrado nesta data ({data_pt}) para este e-mail!"}
+                    return {"erro": f"Já existe um treino registado nesta data ({data_pt}) para este e-mail!"}
 
         base_kcal = 50 if dados.tipo_atividade == "caminhada" else 70
         fator_esforco = 1 + ((dados.esforco - 5) * 0.05) 
@@ -135,16 +136,35 @@ def registrar_treino(dados: TreinoInput):
             "tempo_gasto": dados.tempo,
             "calorias": calorias_calculadas,
             "esforco_percebido": dados.esforco,
-            "clima": dados.clima,
+            # MUDANÇA FUNCIONAL: O campo 'clima' foi apagado daqui.
             "data_hora": f"{dados.data_treino}T12:00:00Z"
         }).execute()
-        
-        # O resto da função continua exatamente igual...
-        
-        # O resto da função continua exatamente igual...
 
         res = supabase.table("treinos").select("*").eq("email", dados.email).order("data_hora", desc=True).limit(28).execute()
         analise = gerar_prescricao(dados, res.data if res.data else [])
         return {"analise": analise}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- MUDANÇA FUNCIONAL: Rota do Feedback colocada no final ---
+# Função para atualizar o banco de dados com a nota de esforço real do utilizador.
+@app.post("/registrar_feedback")
+def registrar_feedback(dados: FeedbackInput):
+    try:
+        registros = supabase.table("treinos").select("id, data_hora").eq("email", dados.email).execute()
+        treino_id = None
+        
+        if registros.data:
+            for t in registros.data:
+                if t['data_hora'] and t['data_hora'].startswith(dados.data_treino):
+                    treino_id = t['id']
+                    break
+                    
+        if not treino_id:
+            return {"erro": "Treino não encontrado."}
+
+        supabase.table("treinos").update({"feedback_treino": dados.feedback}).eq("id", treino_id).execute()
+        return {"sucesso": True}
+        
+    except Exception as e:
+        return {"erro": str(e)}
