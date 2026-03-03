@@ -5,6 +5,7 @@
   ],
   "routes": [
     { "src": "/registrar_treino", "dest": "/api/index.py" },
+    { "src": "/registrar_feedback", "dest": "/api/index.py" },
     { "src": "/(.*)", "dest": "/static/index.html" }
   ]
 }
