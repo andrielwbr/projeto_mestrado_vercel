@@ -1,10 +1,12 @@
 {
-  "builds": [
-    { "src": "api/index.py", "use": "@vercel/python" },
-    { "src": "static/*", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/registrar_treino", "dest": "/api/index.py" },
-    { "src": "/(.*)", "dest": "/static/index.html" }
+  "rewrites": [
+    {
+      "source": "/registrar_treino",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/registrar_feedback",
+      "destination": "/api/index.py"
+    }
   ]
 }
