@@ -1,11 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/registrar_treino",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/registrar_feedback",
+      "source": "/(.*)",
       "destination": "/api/index.py"
     }
   ]
