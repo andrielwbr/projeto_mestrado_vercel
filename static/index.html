@@ -341,7 +341,7 @@
         }
     }
 
-    // --- MUDANÇA FUNCIONAL: Leitura de resposta bruta para exibir o erro real ---
+// --- MUDANÇA FUNCIONAL: Leitura de erro real e Reset Suave Sênior ---
     async function enviarFeedback(nota) {
         const emailRaw = localStorage.getItem('run_email');
         if (!emailRaw) return alert("Erro: E-mail não encontrado. Faça uma análise primeiro.");
@@ -359,20 +359,51 @@
                 body: JSON.stringify({ email: email, data_treino: dataTreino, feedback: nota })
             });
             
-            // Em vez de req.json(), lemos o texto bruto para ver o que o servidor realmente respondeu
             const texto = await req.text();
             
             let res;
             try {
                 res = JSON.parse(texto);
             } catch (jsonErro) {
-                // Se o servidor devolver uma página HTML de erro (ex: 404 Not Found), aparecerá aqui!
                 bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Resposta inválida do servidor: ${texto.substring(0, 60)}...</p>`;
                 return;
             }
 
             if (req.ok && res.sucesso) {
-                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback guardado com sucesso!</p>`;
+                // Mensagem de sucesso visível por 2.5 segundos
+                bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #16a34a; font-weight: bold; font-size: 14px;">✅ Feedback guardado! Preparando novo treino...</p>`;
+                
+                // MUDANÇA FUNCIONAL (ABORDAGEM SÊNIOR): Limpeza suave da interface
+                setTimeout(() => {
+                    // 1. Limpa apenas os dados do treino passado (mantém email, nome e idade salvos)
+                    document.getElementById('km').value = '';
+                    document.getElementById('tempo').value = '';
+                    
+                    // 2. Restaura o botão de esforço para o meio (5/10)
+                    document.getElementById('esforco').value = 5;
+                    atualizarEsforco(5);
+                    
+                    // 3. Esconde os blocos da IA (Resultado e Feedback)
+                    document.getElementById('resultado').style.display = "none";
+                    document.getElementById('btnToggleDetalhes').style.display = "none";
+                    bloco.style.display = "none";
+                    
+                    // 4. Garante que a data do calendário volta para o dia de hoje
+                    const hoje = new Date();
+                    document.getElementById('data_treino').value = hoje.toISOString().split('T')[0];
+                    
+                    // 5. Reconstrói os botões originais do feedback para a próxima vez que o bloco aparecer
+                    bloco.innerHTML = `
+                        <p class="mb-2" style="font-size: 14px; font-weight: bold; color: #0369a1;">🧠 Como o seu corpo reagiu a este treino?</p>
+                        <p style="font-size: 11px; color: #0284c7; margin-top: -5px; margin-bottom: 12px;">Isto ajuda a IA a aprender os seus limites.</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button onclick="enviarFeedback('Excelente (Sem dores)')" class="btn btn-sm" style="background: #16a34a; color: white; border-radius: 20px;">🟢 Excelente</button>
+                            <button onclick="enviarFeedback('Cansado (Fadiga normal)')" class="btn btn-sm" style="background: #f59e0b; color: white; border-radius: 20px;">🟡 Cansado</button>
+                            <button onclick="enviarFeedback('Com Dor (Sinal de lesão)')" class="btn btn-sm" style="background: #dc2626; color: white; border-radius: 20px;">🔴 Com Dor</button>
+                        </div>
+                    `;
+                }, 2500); 
+                
             } else {
                 bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-weight: bold; font-size: 14px;">❌ Erro no banco: ${res.erro}</p>`;
             }
