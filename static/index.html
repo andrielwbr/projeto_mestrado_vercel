@@ -110,6 +110,15 @@
             <input type="text" id="user_id" class="form-control" placeholder="Ex: andriel" required>
         </div>
 
+        <div class="mb-4 text-center">
+            <button type="button" id="btnConsultar" onclick="consultarIA()" class="btn btn-sm" style="background: #e0f2fe; color: #0284c7; border: 1px solid #38bdf8; border-radius: 8px; font-weight: bold; width: 100%; padding: 10px; transition: 0.3s;">
+                🤖 O QUE DEVO TREINAR HOJE?
+            </button>
+            <div id="resultadoConsulta" class="mt-2 p-3 rounded text-start" style="display: none; background: #f8f9fa; border-left: 4px solid #0284c7; font-size: 13px; animation: fadeIn 0.4s;">
+                </div>
+        </div>
+        <hr style="border-top: 1px dashed #ccc; margin-bottom: 20px;">
+
         <div class="mb-3">
             <label>DATA DO TREINO</label>
             <input type="date" id="data_treino" class="form-control" style="color: #666; font-weight: bold;" required>
@@ -481,6 +490,53 @@ let graficoInstancia = null;
             bloco.scrollIntoView({behavior: 'smooth', block: 'end'});
         } catch (e) {
             alert("Falha ao carregar gráfico: " + e.message);
+        }
+    }
+
+async function consultarIA() {
+        const emailBox = document.getElementById('user_email').value;
+        const emailLocal = localStorage.getItem('run_email');
+        const emailFinal = emailBox || emailLocal;
+
+        if (!emailFinal) return alert("⚠️ Digite o seu E-mail lá em cima para a IA saber quem você é.");
+
+        const btn = document.getElementById('btnConsultar');
+        const div = document.getElementById('resultadoConsulta');
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = "⏳ Consultando os seus últimos treinos...";
+        btn.disabled = true;
+
+        try {
+            const req = await fetch('/consultar_hoje', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email: emailFinal.toLowerCase().trim() })
+            });
+            const res = await req.json();
+
+            if (res.erro) {
+                div.innerHTML = `<b style="color:#dc2626">Erro:</b> ${res.erro}`;
+            } else {
+                let corTitulo = "#16a34a"; // Verde
+                if(res.status.includes('🔴')) corTitulo = "#dc2626"; // Vermelho
+                if(res.status.includes('🟡')) corTitulo = "#f59e0b"; // Amarelo
+
+                div.innerHTML = `
+                    <b style="color: ${corTitulo}; font-size: 14px;">${res.status}</b><br>
+                    <span style="color: #666; font-size: 12px;">${res.mensagem}</span><br><br>
+                    <div style="background: #e0f2fe; padding: 10px; border-radius: 6px;">
+                        <b style="color: #0369a1; font-size: 12px;">🎯 PRESCRIÇÃO DA IA:</b><br>
+                        <span style="color: #0284c7; font-weight: 500;">${res.sugestao}</span>
+                    </div>
+                `;
+            }
+            div.style.display = "block";
+        } catch(e) {
+            alert("Erro de comunicação: " + e.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     }
 </script>

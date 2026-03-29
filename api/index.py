@@ -207,3 +207,57 @@ def historico_grafico(dados: HistoricoInput):
         return {"sucesso": True, "datas": datas, "aguda": aguda, "cronica": cronica}
     except Exception as e:
         return {"erro": str(e)}
+
+
+class ConsultaInput(BaseModel):
+    email: str
+
+@app.post("/consultar_hoje")
+def consultar_hoje(dados: ConsultaInput):
+    try:
+        # Busca o histórico ordenado do mais recente para o mais antigo
+        res = supabase.table("treinos").select("*").eq("email", dados.email).order("data_hora", desc=True).execute()
+        historico = res.data if res.data else []
+        
+        if not historico:
+            return {
+                "status": "⚪ BEM-VINDO(A)", 
+                "mensagem": "Não encontramos histórico de treinos para este e-mail.", 
+                "sugestao": "Faça o seu primeiro treino leve de reconhecimento e registre os dados aqui!"
+            }
+            
+        ultimo_treino = historico[0]
+        
+        # Calcula os dias desde o último treino
+        data_ultimo_obj = datetime.strptime(ultimo_treino['data_hora'][:10], "%Y-%m-%d").date()
+        hoje = (datetime.utcnow() - timedelta(hours=3)).date()
+        dias_descanso = (hoje - data_ultimo_obj).days
+
+        feedback = ultimo_treino.get('feedback_treino', '')
+        if not feedback: feedback = "Sem feedback"
+        
+        # Calcula a média crônica para sugerir a distância ideal
+        total_hist = sum(t.get('km_percorridos', 0) for t in historico)
+        media_cronica = total_hist / len(historico)
+
+        # A Árvore de Decisão da IA (Regras de Negócio)
+        if "Dor" in feedback and dias_descanso < 3:
+            status = "🔴 RECUPERAÇÃO ATIVA"
+            msg = f"Você relatou DOR no último treino há {dias_descanso} dia(s). O risco de lesão articular é muito alto."
+            sugestao = "Descanso total ou, no máximo, exercícios de mobilidade e alongamento."
+        elif dias_descanso == 0:
+            status = "🟡 VOCÊ JÁ TREINOU HOJE"
+            msg = "O nosso banco indica que você já registrou um treino no dia de hoje."
+            sugestao = "Foque na hidratação e descanse. O seu próximo treino deve ser amanhã."
+        elif "Cansado" in feedback and dias_descanso < 2:
+            status = "🟡 RECUPERAÇÃO"
+            msg = f"Você relatou fadiga acentuada no último treino ({dias_descanso} dia atrás)."
+            sugestao = f"Treino regenerativo: Caminhada leve ou um trote de no máximo {round(media_cronica * 0.5, 1)} km."
+        else:
+            status = "🟢 SINAL VERDE"
+            msg = f"Você descansou por {dias_descanso} dia(s) e o seu último feedback foi positivo."
+            sugestao = f"O corpo está pronto! Sugerimos um treino na casa dos {round(media_cronica * 1.1, 1)} km num ritmo confortável."
+
+        return {"status": status, "mensagem": msg, "sugestao": sugestao}
+    except Exception as e:
+        return {"erro": str(e)}
