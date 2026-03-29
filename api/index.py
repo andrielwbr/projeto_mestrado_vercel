@@ -168,3 +168,42 @@ def registrar_feedback(dados: FeedbackInput):
         
     except Exception as e:
         return {"erro": str(e)}
+    
+    
+class HistoricoInput(BaseModel):
+    email: str
+
+@app.post("/historico_grafico")
+def historico_grafico(dados: HistoricoInput):
+    try:
+        # Busca os últimos 7 treinos do atleta, ordenados do mais antigo para o mais novo
+        res = supabase.table("treinos").select("data_hora, km_percorridos").eq("email", dados.email).order("data_hora", desc=False).limit(7).execute()
+        
+        if not res.data:
+            return {"erro": "Nenhum treino encontrado."}
+
+        datas = []
+        aguda = []
+        cronica = []
+        
+        historico_acumulado = []
+        
+        for t in res.data:
+            # Formata a data para DD/MM
+            data_formatada = t['data_hora'][8:10] + "/" + t['data_hora'][5:7]
+            km = t['km_percorridos']
+            
+            # Calcula a Média Crônica (o que o corpo estava acostumado antes deste treino)
+            total_hist = sum(historico_acumulado)
+            divisor = len(historico_acumulado) if len(historico_acumulado) > 0 else 1
+            media_cronica = total_hist / divisor if total_hist > 0 else km
+            
+            datas.append(data_formatada)
+            aguda.append(km)
+            cronica.append(round(media_cronica, 1))
+            
+            historico_acumulado.append(km)
+            
+        return {"sucesso": True, "datas": datas, "aguda": aguda, "cronica": cronica}
+    except Exception as e:
+        return {"erro": str(e)}

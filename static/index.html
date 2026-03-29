@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>RunAI Coach</title>
@@ -168,6 +169,15 @@
 
         <button type="submit" id="btnEnviar" class="btn-gradient">ANALISAR PERFORMANCE</button>
     </form>
+    <button type="button" onclick="carregarGrafico()" class="btn btn-outline-secondary w-100 mt-2" style="border-radius: 25px; font-weight: bold; font-size: 13px;">
+            📊 VER MEU HISTÓRICO DE RISCO
+        </button>
+    </form>
+    
+    <div id="blocoGrafico" class="mt-4 p-3 rounded" style="display: none; background: #ffffff; border: 1px solid #ddd; animation: fadeIn 0.6s;">
+        <p style="font-size: 14px; font-weight: bold; color: #333; text-align: center; margin-bottom: 10px;">Carga Aguda vs. Crônica</p>
+        <canvas id="meuGrafico"></canvas>
+    </div>
     
     <div id="resultado" class="mt-4 p-3 rounded" style="display: none; background: #f8f9fa; border: 1px solid #ddd; animation: fadeIn 0.6s;">
     </div>
@@ -409,6 +419,68 @@
             }
         } catch (e) {
             bloco.innerHTML = `<p class="mt-2 mb-0" style="color: #dc2626; font-size: 14px;">❌ Falha na comunicação: ${e.message}</p>`;
+        }
+    }
+
+let graficoInstancia = null;
+
+    async function carregarGrafico() {
+        const emailRaw = localStorage.getItem('run_email');
+        if (!emailRaw) return alert("Erro: E-mail não encontrado. Faça uma análise primeiro para identificar o seu utilizador.");
+        
+        const bloco = document.getElementById('blocoGrafico');
+        bloco.style.display = 'block';
+
+        try {
+            const req = await fetch('/historico_grafico', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email: emailRaw.toLowerCase().trim() })
+            });
+            const res = await req.json();
+
+            if (res.erro) return alert("Aviso: " + res.erro);
+
+            const ctx = document.getElementById('meuGrafico').getContext('2d');
+            
+            // Destrói o gráfico anterior se o utilizador clicar duas vezes
+            if (graficoInstancia) graficoInstancia.destroy();
+
+            graficoInstancia = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: res.datas,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Carga Crônica (Média)',
+                            data: res.cronica,
+                            borderColor: '#f59e0b',
+                            backgroundColor: '#f59e0b',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: false
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Carga Aguda (Treino do Dia)',
+                            data: res.aguda,
+                            backgroundColor: 'rgba(164, 69, 178, 0.6)',
+                            borderColor: '#a445b2',
+                            borderWidth: 1,
+                            borderRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Quilómetros (km)' } } }
+                }
+            });
+            
+            bloco.scrollIntoView({behavior: 'smooth', block: 'end'});
+        } catch (e) {
+            alert("Falha ao carregar gráfico: " + e.message);
         }
     }
 </script>
