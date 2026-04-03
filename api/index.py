@@ -23,11 +23,12 @@ class TreinoInput(BaseModel):
     data_treino: str
     tipo_atividade: str
     idade: int
+    sexo: str    # <--- ADICIONE ESTA LINHA
     nivel: str 
     km: float
     tempo: float
     esforco: int
-    # MUDANÇA FUNCIONAL: 'clima: str' foi removido para poupar processamento.
+
 
 class FeedbackInput(BaseModel):
     email: str
@@ -131,6 +132,7 @@ def registrar_treino(dados: TreinoInput):
             "user_id": dados.user_id,      
             "tipo_atividade": dados.tipo_atividade,
             "idade": dados.idade,
+            "sexo": dados.sexo,    # <--- ADICIONE ESTA LINHA COM A VÍRGULA
             "nivel_experiencia": dados.nivel,
             "km_percorridos": dados.km,
             "tempo_gasto": dados.tempo,
