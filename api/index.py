@@ -39,13 +39,16 @@ class FeedbackInput(BaseModel):
 # --- CÉREBRO DA IA (Intacto) ---
 # --- CÉREBRO DA IA (Atualizado e Seguro) ---
 def gerar_prescricao(treino, historico):
+    # 1. DEFINIÇÃO DE PERFIS BIOFÍSICOS (Diferenciando Caminhada vs Corrida)
     if treino.tipo_atividade == "caminhada":
         fator_calorico = 50  
-        limite_lesao = 2.0  
+        limite_lesao = 2.2      # Caminhantes suportam um Ratio maior (baixo impacto)
+        trava_volume_alto = 15.0 # O alerta de perigo na caminhada só começa nos 15km
         verbo = "Caminhar"
-    else:
+    else: # Corrida
         fator_calorico = 70  
-        limite_lesao = 1.5  
+        limite_lesao = 1.5      
+        trava_volume_alto = 10.0 # O alerta de perigo na corrida começa nos 10km
         verbo = "Correr"
 
     carga_aguda = treino.km
@@ -57,9 +60,11 @@ def gerar_prescricao(treino, historico):
     
     ratio = carga_aguda / carga_cronica
 
-    # Verifica se a faixa etária do atleta está no grupo de veteranos
-    if treino.idade in ["45-49", "50-54", "55-59", "60+"]: 
+    # 2. AJUSTE PARA VETERANOS (Sêniors)
+    is_senior = treino.idade in ["45-49", "50-54", "55-59", "60+"]
+    if is_senior: 
         limite_lesao -= 0.2  
+        trava_volume_alto *= 0.8 # Reduz o teto de volume seguro em 20% para proteger as articulações
 
     status = ""
     msg = ""
@@ -71,35 +76,39 @@ def gerar_prescricao(treino, historico):
     # =================================================================
     
     # 1. Trava de Segurança por Volume ou Esforço Alto
-    if treino.km >= 10.0 or treino.esforco >= 7:
+    if treino.km >= trava_volume_alto or treino.esforco >= 7:
         status = "🟡 RECUPERAÇÃO OBRIGATÓRIA"
-        msg = f"Treino forte ({treino.km}km - Esforço {treino.esforco}/10). O corpo gerou microlesões e precisa regenerar."
-        # Se for correr de novo, que seja no máximo 30% do volume, travado em 5km.
+        tipo_msg = "impacto articular" if treino.tipo_atividade == "corrida" else "desgaste sistêmico"
+        msg = f"Treino forte ({treino.km}km - Esforço {treino.esforco}/10). Risco de {tipo_msg}."
+        # Regenerativo de 30%, travado num máximo de 5km
         proximo_km = min(treino.km * 0.3, 5.0) 
-        acao = "Repouso absoluto ou no máximo um trote/caminhada muito leve para soltar."
-        dias_descanso = 2 if treino.km >= 15 else 1
+        acao = "Repouso absoluto ou atividade muito leve sem impacto para soltar a musculatura."
+        dias_descanso = 2 if treino.km >= (trava_volume_alto * 1.5) else 1
         
     # 2. Trava de Risco pelo Histórico (Pico de Carga)
     elif ratio > limite_lesao:
         status = "🔴 ALTO RISCO (Pico de Carga)"
-        msg = "Aumento muito brusco comparado à sua média recente. Risco articular."
+        msg = f"Aumento muito brusco comparado à sua média recente de {treino.tipo_atividade}."
         proximo_km = treino.km * 0.5 
-        acao = "Reduza drasticamente o volume no próximo treino. Alterne com fortalecimento."
+        acao = "Reduza drasticamente o volume no próximo treino para evitar lesões."
         dias_descanso = 2 
         
     # 3. A Zona Ideal de Evolução
     elif 0.8 <= ratio <= limite_lesao:
         status = "🟢 ZONA IDEAL (Evoluindo)"
-        msg = "Carga excelente e perfeitamente segura para o seu condicionamento atual."
-        proximo_km = treino.km * 1.1 
+        msg = f"Carga excelente e segura para o seu condicionamento atual."
+        # Caminhada permite evoluir um pouco mais rápido que corrida
+        fator_progresso = 1.15 if treino.tipo_atividade == "caminhada" else 1.1 
+        proximo_km = treino.km * fator_progresso 
         acao = "Mantenha a consistência. O corpo está a adaptar-se bem."
         dias_descanso = 1
         
-    # 4. Treinos Base (Abaixo de 10km e Esforço Leve)
+    # 4. Treinos Base (Abaixo do perigo e Esforço Leve)
     else:
         status = "🟢 CARGA DE MANUTENÇÃO"
-        msg = f"Treino aeróbico base (Esforço {treino.esforco}/10). Ótimo para resistência."
-        proximo_km = treino.km * 1.15 # Crescimento máximo e seguro de 15%
+        msg = f"Treino base (Esforço {treino.esforco}/10). Ótimo para resistência."
+        fator_progresso = 1.2 if treino.tipo_atividade == "caminhada" else 1.15
+        proximo_km = treino.km * fator_progresso
         acao = "Pronto para o próximo. Pode tentar aumentar levemente a distância."
         dias_descanso = 1 
     # =================================================================
