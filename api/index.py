@@ -37,6 +37,7 @@ class FeedbackInput(BaseModel):
 
 # --- CÉREBRO DA IA (Intacto) ---
 # --- CÉREBRO DA IA (Intacto) ---
+# --- CÉREBRO DA IA (Atualizado e Seguro) ---
 def gerar_prescricao(treino, historico):
     if treino.tipo_atividade == "caminhada":
         fator_calorico = 50  
@@ -56,8 +57,7 @@ def gerar_prescricao(treino, historico):
     
     ratio = carga_aguda / carga_cronica
 
-    # 👇 A PARTIR DAQUI TUDO FOI EMPURRADO PARA DENTRO DA FUNÇÃO (ALINHADO)
-    # Nova lógica: Verifica se a faixa etária do atleta está no grupo de veteranos
+    # Verifica se a faixa etária do atleta está no grupo de veteranos
     if treino.idade in ["45-49", "50-54", "55-59", "60+"]: 
         limite_lesao -= 0.2  
 
@@ -66,24 +66,43 @@ def gerar_prescricao(treino, historico):
     proximo_km = 0
     dias_descanso = 1 
 
-    if ratio > limite_lesao:
-        status = "🔴 ALTO RISCO (Descanse)"
-        msg = f"Carga muito alta para {treino.tipo_atividade}. Risco de lesão."
+    # =================================================================
+    # A NOVA ÁRVORE DE DECISÃO INTELIGENTE
+    # =================================================================
+    
+    # 1. Trava de Segurança por Volume ou Esforço Alto
+    if treino.km >= 10.0 or treino.esforco >= 7:
+        status = "🟡 RECUPERAÇÃO OBRIGATÓRIA"
+        msg = f"Treino forte ({treino.km}km - Esforço {treino.esforco}/10). O corpo gerou microlesões e precisa regenerar."
+        # Se for correr de novo, que seja no máximo 30% do volume, travado em 5km.
+        proximo_km = min(treino.km * 0.3, 5.0) 
+        acao = "Repouso absoluto ou no máximo um trote/caminhada muito leve para soltar."
+        dias_descanso = 2 if treino.km >= 15 else 1
+        
+    # 2. Trava de Risco pelo Histórico (Pico de Carga)
+    elif ratio > limite_lesao:
+        status = "🔴 ALTO RISCO (Pico de Carga)"
+        msg = "Aumento muito brusco comparado à sua média recente. Risco articular."
         proximo_km = treino.km * 0.5 
-        acao = "Descanso total ou alongamento."
+        acao = "Reduza drasticamente o volume no próximo treino. Alterne com fortalecimento."
         dias_descanso = 2 
+        
+    # 3. A Zona Ideal de Evolução
     elif 0.8 <= ratio <= limite_lesao:
         status = "🟢 ZONA IDEAL (Evoluindo)"
-        msg = f"Treino perfeito de {treino.tipo_atividade}."
+        msg = "Carga excelente e perfeitamente segura para o seu condicionamento atual."
         proximo_km = treino.km * 1.1 
-        acao = "Descanso padrão de 24h."
+        acao = "Mantenha a consistência. O corpo está a adaptar-se bem."
         dias_descanso = 1
+        
+    # 4. Treinos Base (Abaixo de 10km e Esforço Leve)
     else:
-        status = "🟡 CARGA BAIXA (Manutenção)"
-        msg = "Treino leve. Corpo nem sentiu."
-        proximo_km = treino.km * 1.2 
-        acao = "Pode treinar amanhã se quiser."
+        status = "🟢 CARGA DE MANUTENÇÃO"
+        msg = f"Treino aeróbico base (Esforço {treino.esforco}/10). Ótimo para resistência."
+        proximo_km = treino.km * 1.15 # Crescimento máximo e seguro de 15%
+        acao = "Pronto para o próximo. Pode tentar aumentar levemente a distância."
         dias_descanso = 1 
+    # =================================================================
 
     data_treino_obj = datetime.strptime(treino.data_treino, "%Y-%m-%d").date()
     hoje = (datetime.utcnow() - timedelta(hours=3)).date()
