@@ -36,6 +36,7 @@ class FeedbackInput(BaseModel):
     feedback: str
 
 # --- CÉREBRO DA IA (Intacto) ---
+# --- CÉREBRO DA IA (Intacto) ---
 def gerar_prescricao(treino, historico):
     if treino.tipo_atividade == "caminhada":
         fator_calorico = 50  
@@ -55,9 +56,10 @@ def gerar_prescricao(treino, historico):
     
     ratio = carga_aguda / carga_cronica
 
-# Nova lógica: Verifica se a faixa etária do atleta está no grupo de veteranos
-if treino.idade in ["45-49", "50-54", "55-59", "60+"]: 
-    limite_lesao -= 0.2  
+    # 👇 A PARTIR DAQUI TUDO FOI EMPURRADO PARA DENTRO DA FUNÇÃO (ALINHADO)
+    # Nova lógica: Verifica se a faixa etária do atleta está no grupo de veteranos
+    if treino.idade in ["45-49", "50-54", "55-59", "60+"]: 
+        limite_lesao -= 0.2  
 
     status = ""
     msg = ""
