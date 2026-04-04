@@ -22,8 +22,8 @@ class TreinoInput(BaseModel):
     user_id: str
     data_treino: str
     tipo_atividade: str
-    idade: int
-    sexo: str    # <--- ADICIONE ESTA LINHA
+    idade: str      # 👈 A CORREÇÃO: Mudamos de 'int' para 'str' para aceitar "25-29"
+    sexo: str    
     nivel: str 
     km: float
     tempo: float
