@@ -304,12 +304,13 @@
         else { divRes.style.display = 'none'; btn.innerText = 'Mostrar análise'; }
     }
 
-    async function enviar() {
-        const idadeUser = parseInt(document.getElementById('idade').value);
+async function enviar() {
+        // 1. CORREÇÃO DA IDADE: Agora pegamos o texto da categoria diretamente
+        const idadeUser = document.getElementById('idade').value;
         const kmUser = parseFloat(document.getElementById('km').value);
         const tempoUser = parseFloat(document.getElementById('tempo').value);
 
-        if (idadeUser < 10 || idadeUser > 99) return alert("⚠️ Idade inválida.");
+        if (!idadeUser) return alert("⚠️ Selecione a sua faixa etária.");
         if (kmUser <= 0 || kmUser > 100) return alert("⚠️ Distância irreal.");
         if (tempoUser <= 0 || tempoUser > 600) return alert("⚠️ Tempo inválido.");
 
@@ -318,20 +319,22 @@
         btn.disabled = true;
         btn.style.opacity = "0.7";
 
-        // 1. O navegador decora a escolha para amanhã:
+        // O navegador decora a escolha para amanhã:
         localStorage.setItem('run_email', document.getElementById('user_email').value);
         localStorage.setItem('run_user', document.getElementById('user_id').value);
-        localStorage.setItem('run_age', document.getElementById('idade').value);
-        localStorage.setItem('run_sexo', document.getElementById('sexo').value); // 👈 ADICIONE ISTO AQUI
+        localStorage.setItem('run_age', idadeUser); 
+        localStorage.setItem('run_sexo', document.getElementById('sexo').value);
 
-        // 2. O pacote de dados ganha a nova variável:
+        const dataInput = document.getElementById('data_treino').value;
+
+        // O pacote de dados que vai para o servidor
         const dados = {
             email: document.getElementById('user_email').value.toLowerCase(), 
             user_id: document.getElementById('user_id').value,
-            data_treino: document.getElementById('data_treino').value,
+            data_treino: dataInput,
             tipo_atividade: document.getElementById('tipo_atividade').value,
-            idade: idadeUser,
-            sexo: document.getElementById('sexo').value, // 👈 A NOSSA NOVA LINHA AQUI
+            idade: idadeUser, 
+            sexo: document.getElementById('sexo').value, 
             nivel: document.getElementById('nivel').value,
             km: kmUser,
             tempo: tempoUser,
@@ -357,13 +360,62 @@
                 btn.innerText = "ANALISAR PERFORMANCE"; btn.disabled = false; btn.style.opacity = "1";
                 return; 
             }
+
+            // ====================================================================
+            // 🛑 A TRAVA PROFISSIONAL E TEMPORAL (INTERCEPTAÇÃO)
+            // ====================================================================
+            const dataTreino = new Date(dataInput + "T00:00:00"); 
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0); 
+            const diferencaTempo = hoje.getTime() - dataTreino.getTime();
+            const diasAtras = Math.floor(diferencaTempo / (1000 * 3600 * 24));
+
+            if (kmUser >= 12.0) {
+                // Intercepta e ZERA a recomendação absurda de km vinda do backend
+                res.analise.proximo_treino = "0.0 km (Descanso)"; 
+                res.analise.status = "🟡 RECUPERAÇÃO ATIVA"; 
+                
+                if (kmUser >= 42.0) {
+                    res.analise.acao = "DESCANSO ABSOLUTO. Zona de Maratona: Seu corpo precisa de repouso total nos próximos dias.";
+                } else if (kmUser >= 21.0) {
+                    res.analise.acao = "DESCANSO OBRIGATÓRIO. Zona de Meia-Maratona: Não corra. Foque em hidratação e sono.";
+                } else {
+                    if (diasAtras === 0) {
+                        res.analise.acao = "⚠️ DESCANSO AMANHÃ: Você fez um volume alto hoje. Repouso obrigatório no dia de amanhã para evitar lesões.";
+                    } else if (diasAtras === 1) {
+                        res.analise.acao = "⚠️ DESCANSO HOJE: O seu treino de ontem foi intenso. Hoje é dia de repouso total ou atividade sem impacto.";
+                    } else {
+                        res.analise.acao = "✅ RECUPERAÇÃO CONCLUÍDA: O seu longão já faz alguns dias. Retome os treinos com cautela.";
+                    }
+                }
+            } else {
+                // Trava de Progressão (Máximo 20% de aumento)
+                // Extrai o número do texto que o servidor enviou (ex: "17.0 km" vira 17.0)
+                let recomendacaoBackend = parseFloat(res.analise.proximo_treino);
+                let tetoEvolucao = kmUser * 1.2;
+                
+                if (!isNaN(recomendacaoBackend) && recomendacaoBackend > tetoEvolucao) {
+                    // Se o servidor mandou correr mais do que o teto de 20%, nós cortamos!
+                    res.analise.proximo_treino = `${tetoEvolucao.toFixed(1)} km (Teto Seguro)`;
+                }
+                
+                // Ajuste de texto para contexto temporal de treinos normais
+                if (diasAtras === 0) {
+                    res.analise.acao = "Para amanhã, " + res.analise.acao.toLowerCase();
+                } else if (diasAtras === 1) {
+                    res.analise.acao = "Para hoje, " + res.analise.acao.toLowerCase();
+                }
+            }
+            // ====================================================================
             
+            // Exibição na Tela
             const divRes = document.getElementById('resultado');
             divRes.style.display = 'block';
             
             let corStatus = "#f59e0b"; 
             if(res.analise.status.includes('🔴')) corStatus = "#dc2626";
             if(res.analise.status.includes('🟢')) corStatus = "#16a34a";
+            if(res.analise.status.includes('🟡')) corStatus = "#ca8a04";
 
             divRes.innerHTML = `
                 <div style="text-align: left;">
@@ -374,15 +426,13 @@
                     <p style="font-size: 14px; margin-bottom: 15px; color: #333;"><strong>RECOMENDAÇÃO:</strong> ${res.analise.acao}</p>
                     
                     <div style="background: #e0f2fe; padding: 12px; border-radius: 8px; border-left: 4px solid #0284c7;">
-                        <p style="font-size: 12px; color: #0369a1; margin-bottom: 2px; text-transform: uppercase; font-weight: bold;">Próximo Treino & Gasto</p>
+                        <p style="font-size: 12px; color: #0369a1; margin-bottom: 2px; text-transform: uppercase; font-weight: bold;">Próximo Treino Seguro</p>
                         <p style="font-size: 16px; font-weight: bold; color: #0284c7; margin-bottom: 0;">🎯 ${res.analise.proximo_treino}</p>
                     </div>
                 </div>
             `;
 
             document.getElementById('btnToggleDetalhes').style.display = "inline-block";
-            
-            // MUDANÇA FUNCIONAL: Mostra o bloco de feedback após a análise da IA terminar.
             document.getElementById('blocoFeedback').style.display = "block"; 
             
             divRes.scrollIntoView({behavior: 'smooth', block: 'end'});
