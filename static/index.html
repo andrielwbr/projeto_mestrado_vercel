@@ -220,23 +220,30 @@
     if(localStorage.getItem('run_sexo')) document.getElementById('sexo').value = localStorage.getItem('run_sexo');
     document.addEventListener('DOMContentLoaded', () => {
         const campoData = document.getElementById('data_treino');
-        const hoje = new Date();
-        const seteDiasAtras = new Date();
-        seteDiasAtras.setDate(hoje.getDate() - 7);
         
-        // 👉 A CORREÇÃO: Pega a data local do aparelho em vez do horário global UTC
-        const formatarData = (data) => {
+        // Função para formatar a data respeitando o fuso horário LOCAL do aparelho
+        const formatarDataLocal = (data) => {
             const ano = data.getFullYear();
             const mes = String(data.getMonth() + 1).padStart(2, '0');
             const dia = String(data.getDate()).padStart(2, '0');
             return `${ano}-${mes}-${dia}`;
         };
-        
-        campoData.max = formatarData(hoje);
-        campoData.min = formatarData(seteDiasAtras);
-        campoData.value = formatarData(hoje);
 
-        // O código de localStorage continua igualzinho aqui para baixo...
+        const hoje = new Date();
+        const seteDiasAtras = new Date();
+        seteDiasAtras.setDate(hoje.getDate() - 7);
+
+        // Aplica as travas e preenche o dia de hoje
+        campoData.max = formatarDataLocal(hoje);
+        campoData.min = formatarDataLocal(seteDiasAtras);
+        campoData.value = formatarDataLocal(hoje);
+
+        // O navegador lembra dos dados preenchidos anteriormente
+        if(localStorage.getItem('run_email')) document.getElementById('user_email').value = localStorage.getItem('run_email');
+        if(localStorage.getItem('run_user')) document.getElementById('user_id').value = localStorage.getItem('run_user');
+        if(localStorage.getItem('run_age')) document.getElementById('idade').value = localStorage.getItem('run_age');
+        if(localStorage.getItem('run_sexo')) document.getElementById('sexo').value = localStorage.getItem('run_sexo');
+    });
 
     function atualizarNiveis() {
         const tipo = document.getElementById('tipo_atividade').value;
