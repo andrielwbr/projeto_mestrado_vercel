@@ -54,7 +54,10 @@ def gerar_prescricao(treino, historico):
     if carga_cronica == 0: carga_cronica = 1
     
     ratio = carga_aguda / carga_cronica
-    if treino.idade > 45: limite_lesao -= 0.2 
+
+# Nova lógica: Verifica se a faixa etária do atleta está no grupo de veteranos
+if treino.idade in ["45-49", "50-54", "55-59", "60+"]: 
+    limite_lesao -= 0.2  
 
     status = ""
     msg = ""
