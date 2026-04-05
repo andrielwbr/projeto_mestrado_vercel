@@ -598,30 +598,36 @@ async function apagarUltimoTreino() {
     if (!confirmar) return;
 
     try {
+        const req = await fetch('/deletar_ultimo_treino', {
+            method: 'POST', // 👈 Mudamos de DELETE para POST
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: emailUser })
+        });
+        
         // Proteção contra respostas vazias do servidor
         const text = await req.text();
-        
-        // 🚨 O NOSSO DETETIVE: Mostra exatamente o que a Vercel respondeu!
-        console.log("Resposta bruta do servidor:", text); 
-        
         if (!text) {
             alert("Erro: O servidor não retornou resposta.");
             return;
         }
 
-        let res;
-        try {
-            res = JSON.parse(text);
-        } catch (erroParse) {
-            // Se der erro ao ler o JSON, ele avisa qual foi o texto bizarro que o servidor mandou
-            alert("O servidor respondeu algo que não é JSON: " + text.substring(0, 100));
-            return;
-        }
+        const res = JSON.parse(text);
 
         if (res.erro) {
             alert("⚠️ " + res.erro);
             return;
         }
+
+        alert("✅ " + res.mensagem);
+        
+        // Recarrega a página para limpar a tela
+        location.reload(); 
+
+    } catch (e) {
+        alert("Erro ao tentar apagar: " + e);
+    }
+}
+
 
 </script>
 
