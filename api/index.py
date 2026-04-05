@@ -296,3 +296,26 @@ def consultar_hoje(dados: ConsultaInput):
         return {"status": status, "mensagem": msg, "sugestao": sugestao}
     except Exception as e:
         return {"erro": str(e)}
+    
+
+class DeletarInput(BaseModel):
+    email: str
+
+@app.delete("/deletar_ultimo_treino")
+def deletar_ultimo_treino(dados: DeletarInput):
+    try:
+        # 1. Busca qual é o ID do treino mais recente deste utilizador
+        res = supabase.table("treinos").select("id").eq("email", dados.email).order("data_hora", desc=True).limit(1).execute()
+        
+        if not res.data:
+            return {"erro": "Não há treinos registrados para apagar."}
+            
+        treino_id = res.data[0]['id']
+        
+        # 2. Deleta a linha exata no Supabase usando o ID
+        supabase.table("treinos").delete().eq("id", treino_id).execute()
+        
+        return {"sucesso": True, "mensagem": "O seu último treino foi apagado do histórico."}
+        
+    except Exception as e:
+        return {"erro": str(e)}

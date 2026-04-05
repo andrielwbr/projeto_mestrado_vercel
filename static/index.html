@@ -210,6 +210,10 @@
     <div id="resultado" class="mt-4 p-3 rounded" style="display: none; background: #f8f9fa; border: 1px solid #ddd; animation: fadeIn 0.6s;">
     </div>
 
+    <button id="btnDeletarUltimo" onclick="apagarUltimoTreino()" style="margin-top: 15px; width: 100%; background-color: #ef4444; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">
+        🗑️ Apagar Último Treino (Ops, digitei errado!)
+    </button>
+
     <div class="text-center mt-2">
         <a href="#" id="btnToggleDetalhes" style="display: none; color: #666; font-size: 13px; text-decoration: underline; font-weight: bold;" onclick="toggleDetalhes(event)">Ocultar análise</a>
     </div>
@@ -397,6 +401,9 @@ async function enviar() {
             btn.disabled = false;
             btn.style.opacity = "1";
         }
+    
+    document.getElementById('btnDeletarUltimo').style.display = "inline-block";
+    
     }
 
 // --- MUDANÇA FUNCIONAL: Leitura de erro real e Reset Suave Sênior ---
@@ -578,6 +585,44 @@ async function consultarIA() {
             btn.disabled = false;
         }
     }
+
+
+async function apagarUltimoTreino() {
+    const emailUser = document.getElementById('user_email').value.toLowerCase();
+    
+    if (!emailUser) {
+        return alert("Erro: E-mail não identificado.");
+    }
+
+    // Pede confirmação para evitar cliques acidentais
+    const confirmar = confirm("Tem a certeza que deseja apagar o seu último treino registado? Esta ação não pode ser desfeita.");
+    
+    if (!confirmar) return;
+
+    try {
+        const req = await fetch('/deletar_ultimo_treino', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: emailUser })
+        });
+        const res = await req.json();
+
+        if (res.erro) {
+            alert("⚠️ " + res.erro);
+            return;
+        }
+
+        alert("✅ " + res.mensagem);
+        
+        // Limpa a tela ou recarrega a página para atualizar os dados
+        location.reload(); 
+
+    } catch (e) {
+        alert("Erro de conexão ao tentar apagar: " + e);
+    }
+}
+
+
 </script>
 
 </body>
