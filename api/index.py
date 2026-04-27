@@ -11,7 +11,7 @@ url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 
 if not url:
-    url = "URL_FALSA"
+    url = "https://falsa.supabase.co"
     key = "KEY_FALSA"
 
 supabase: Client = create_client(url, key)
