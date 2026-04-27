@@ -337,7 +337,8 @@
                 btn.innerText = "ENTRAR NO APP"; btn.disabled = false;
             }
         } catch (e) {
-            alert("Erro de conexão."); btn.innerText = "ENTRAR NO APP"; btn.disabled = false;
+            alert("Erro de conexão ou servidor: " + e.message); 
+            btn.innerText = "ENTRAR NO APP"; btn.disabled = false;
         }
     }
 

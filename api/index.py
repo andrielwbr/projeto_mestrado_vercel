@@ -62,14 +62,20 @@ class CadastroInput(BaseModel):
 # =====================================================================
 @app.post("/verificar_login")
 def verificar_login(dados: LoginInput):
-    res = supabase.table("usuarios").select("*").eq("email", dados.email.lower()).execute()
-    if res.data:
-        usuario = res.data[0]
-        if usuario.get("senha") == dados.senha:
-            return {"existe": True, "senha_correta": True, "usuario": usuario}
-        else:
-            return {"existe": True, "senha_correta": False, "erro": "Senha incorreta!"}
-    return {"existe": False}
+    try:
+        res = supabase.table("usuarios").select("*").eq("email", dados.email.lower()).execute()
+        
+        if res.data:
+            usuario = res.data[0]
+            if usuario.get("senha") == dados.senha:
+                return {"existe": True, "senha_correta": True, "usuario": usuario}
+            else:
+                return {"existe": True, "senha_correta": False, "erro": "Senha incorreta!"}
+                
+        return {"existe": False}
+    except Exception as e:
+        # Se algo der errado (banco, conexão, coluna faltando), a IA conta-nos o motivo exato!
+        raise HTTPException(status_code=500, detail=f"Erro interno no banco: {str(e)}")
 
 @app.post("/cadastrar_usuario")
 def cadastrar_usuario(dados: CadastroInput):
