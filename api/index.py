@@ -16,39 +16,90 @@ if not url:
 
 supabase: Client = create_client(url, key)
 
-# --- ESTRUTURAS DE DADOS ---
+# --- ESTRUTURAS DE DADOS (Modelos) ---
 class TreinoInput(BaseModel):
     email: str
     user_id: str
     data_treino: str
     tipo_atividade: str
-    idade: str      # 👈 A CORREÇÃO: Mudamos de 'int' para 'str' para aceitar "25-29"
+    idade: str      
     sexo: str    
     nivel: str 
     km: float
     tempo: float
     esforco: int
 
-
 class FeedbackInput(BaseModel):
     email: str
     data_treino: str
     feedback: str
 
-# --- CÉREBRO DA IA (Intacto) ---
-# --- CÉREBRO DA IA (Intacto) ---
-# --- CÉREBRO DA IA (Atualizado e Seguro) ---
+class HistoricoInput(BaseModel):
+    email: str
+
+class ConsultaInput(BaseModel):
+    email: str
+
+class DeletarInput(BaseModel):
+    email: str
+
+# 👇 NOVOS MODELOS DE AUTENTICAÇÃO 👇
+class LoginInput(BaseModel):
+    email: str
+    senha: str
+
+class CadastroInput(BaseModel):
+    email: str
+    senha: str
+    nome: str
+    idade: str
+    sexo: str
+    nivel: str
+
+
+# =====================================================================
+# SISTEMA DE LOGIN E CADASTRO (A Porta da Frente)
+# =====================================================================
+@app.post("/verificar_login")
+def verificar_login(dados: LoginInput):
+    res = supabase.table("usuarios").select("*").eq("email", dados.email.lower()).execute()
+    if res.data:
+        usuario = res.data[0]
+        if usuario.get("senha") == dados.senha:
+            return {"existe": True, "senha_correta": True, "usuario": usuario}
+        else:
+            return {"existe": True, "senha_correta": False, "erro": "Senha incorreta!"}
+    return {"existe": False}
+
+@app.post("/cadastrar_usuario")
+def cadastrar_usuario(dados: CadastroInput):
+    try:
+        supabase.table("usuarios").insert({
+            "email": dados.email.lower(),
+            "senha": dados.senha, 
+            "nome": dados.nome,
+            "idade": dados.idade,
+            "sexo": dados.sexo,
+            "nivel": dados.nivel
+        }).execute()
+        return {"sucesso": True}
+    except Exception as e:
+        return {"erro": str(e)}
+
+
+# =====================================================================
+# CÉREBRO DA IA (Intacto e Seguro)
+# =====================================================================
 def gerar_prescricao(treino, historico):
-    # 1. DEFINIÇÃO DE PERFIS BIOFÍSICOS (Diferenciando Caminhada vs Corrida)
     if treino.tipo_atividade == "caminhada":
         fator_calorico = 50  
-        limite_lesao = 2.2      # Caminhantes suportam um Ratio maior (baixo impacto)
-        trava_volume_alto = 15.0 # O alerta de perigo na caminhada só começa nos 15km
+        limite_lesao = 2.2      
+        trava_volume_alto = 15.0 
         verbo = "Caminhar"
-    else: # Corrida
+    else: 
         fator_calorico = 70  
         limite_lesao = 1.5      
-        trava_volume_alto = 10.0 # O alerta de perigo na corrida começa nos 10km
+        trava_volume_alto = 10.0 
         verbo = "Correr"
 
     carga_aguda = treino.km
@@ -60,32 +111,24 @@ def gerar_prescricao(treino, historico):
     
     ratio = carga_aguda / carga_cronica
 
-    # 2. AJUSTE PARA VETERANOS (Sêniors)
     is_senior = treino.idade in ["45-49", "50-54", "55-59", "60+"]
     if is_senior: 
         limite_lesao -= 0.2  
-        trava_volume_alto *= 0.8 # Reduz o teto de volume seguro em 20% para proteger as articulações
+        trava_volume_alto *= 0.8 
 
     status = ""
     msg = ""
     proximo_km = 0
     dias_descanso = 1 
 
-    # =================================================================
-    # A NOVA ÁRVORE DE DECISÃO INTELIGENTE
-    # =================================================================
-    
-    # 1. Trava de Segurança por Volume ou Esforço Alto
     if treino.km >= trava_volume_alto or treino.esforco >= 7:
         status = "🟡 RECUPERAÇÃO OBRIGATÓRIA"
         tipo_msg = "impacto articular" if treino.tipo_atividade == "corrida" else "desgaste sistêmico"
         msg = f"Treino forte ({treino.km}km - Esforço {treino.esforco}/10). Risco de {tipo_msg}."
-        # Regenerativo de 30%, travado num máximo de 5km
         proximo_km = min(treino.km * 0.3, 5.0) 
         acao = "Repouso absoluto ou atividade muito leve sem impacto para soltar a musculatura."
         dias_descanso = 2 if treino.km >= (trava_volume_alto * 1.5) else 1
         
-    # 2. Trava de Risco pelo Histórico (Pico de Carga)
     elif ratio > limite_lesao:
         status = "🔴 ALTO RISCO (Pico de Carga)"
         msg = f"Aumento muito brusco comparado à sua média recente de {treino.tipo_atividade}."
@@ -93,17 +136,14 @@ def gerar_prescricao(treino, historico):
         acao = "Reduza drasticamente o volume no próximo treino para evitar lesões."
         dias_descanso = 2 
         
-    # 3. A Zona Ideal de Evolução
     elif 0.8 <= ratio <= limite_lesao:
         status = "🟢 ZONA IDEAL (Evoluindo)"
         msg = f"Carga excelente e segura para o seu condicionamento atual."
-        # Caminhada permite evoluir um pouco mais rápido que corrida
         fator_progresso = 1.15 if treino.tipo_atividade == "caminhada" else 1.1 
         proximo_km = treino.km * fator_progresso 
         acao = "Mantenha a consistência. O corpo está a adaptar-se bem."
         dias_descanso = 1
         
-    # 4. Treinos Base (Abaixo do perigo e Esforço Leve)
     else:
         status = "🟢 CARGA DE MANUTENÇÃO"
         msg = f"Treino base (Esforço {treino.esforco}/10). Ótimo para resistência."
@@ -111,7 +151,6 @@ def gerar_prescricao(treino, historico):
         proximo_km = treino.km * fator_progresso
         acao = "Pronto para o próximo. Pode tentar aumentar levemente a distância."
         dias_descanso = 1 
-    # =================================================================
 
     data_treino_obj = datetime.strptime(treino.data_treino, "%Y-%m-%d").date()
     hoje = (datetime.utcnow() - timedelta(hours=3)).date()
@@ -134,10 +173,12 @@ def gerar_prescricao(treino, historico):
         "proximo_treino": texto_final
     }
 
+# =====================================================================
+# ROTAS DE TREINO E HISTÓRICO
+# =====================================================================
 @app.post("/registrar_treino")
 def registrar_treino(dados: TreinoInput):
     try:
-        # MUDANÇA FUNCIONAL: Trava de 7 dias, 50km e 5h. Garante que a IA não receba dados absurdos.
         data_treino_obj = datetime.strptime(dados.data_treino, "%Y-%m-%d").date()
         hoje = datetime.utcnow().date()
         diferenca_dias = (hoje - data_treino_obj).days
@@ -165,13 +206,12 @@ def registrar_treino(dados: TreinoInput):
             "user_id": dados.user_id,      
             "tipo_atividade": dados.tipo_atividade,
             "idade": dados.idade,
-            "sexo": dados.sexo,    # <--- ADICIONE ESTA LINHA COM A VÍRGULA
+            "sexo": dados.sexo,    
             "nivel_experiencia": dados.nivel,
             "km_percorridos": dados.km,
             "tempo_gasto": dados.tempo,
             "calorias": calorias_calculadas,
             "esforco_percebido": dados.esforco,
-            # MUDANÇA FUNCIONAL: O campo 'clima' foi apagado daqui.
             "data_hora": f"{dados.data_treino}T12:00:00Z"
         }).execute()
 
@@ -181,8 +221,6 @@ def registrar_treino(dados: TreinoInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- MUDANÇA FUNCIONAL: Rota do Feedback colocada no final ---
-# Função para atualizar o banco de dados com a nota de esforço real do utilizador.
 @app.post("/registrar_feedback")
 def registrar_feedback(dados: FeedbackInput):
     try:
@@ -204,14 +242,9 @@ def registrar_feedback(dados: FeedbackInput):
     except Exception as e:
         return {"erro": str(e)}
     
-    
-class HistoricoInput(BaseModel):
-    email: str
-
 @app.post("/historico_grafico")
 def historico_grafico(dados: HistoricoInput):
     try:
-        # Busca os últimos 7 treinos do atleta, ordenados do mais antigo para o mais novo
         res = supabase.table("treinos").select("data_hora, km_percorridos").eq("email", dados.email).order("data_hora", desc=False).limit(7).execute()
         
         if not res.data:
@@ -220,15 +253,12 @@ def historico_grafico(dados: HistoricoInput):
         datas = []
         aguda = []
         cronica = []
-        
         historico_acumulado = []
         
         for t in res.data:
-            # Formata a data para DD/MM
             data_formatada = t['data_hora'][8:10] + "/" + t['data_hora'][5:7]
             km = t['km_percorridos']
             
-            # Calcula a Média Crônica (o que o corpo estava acostumado antes deste treino)
             total_hist = sum(historico_acumulado)
             divisor = len(historico_acumulado) if len(historico_acumulado) > 0 else 1
             media_cronica = total_hist / divisor if total_hist > 0 else km
@@ -236,21 +266,15 @@ def historico_grafico(dados: HistoricoInput):
             datas.append(data_formatada)
             aguda.append(km)
             cronica.append(round(media_cronica, 1))
-            
             historico_acumulado.append(km)
             
         return {"sucesso": True, "datas": datas, "aguda": aguda, "cronica": cronica}
     except Exception as e:
         return {"erro": str(e)}
 
-
-class ConsultaInput(BaseModel):
-    email: str
-
 @app.post("/consultar_hoje")
 def consultar_hoje(dados: ConsultaInput):
     try:
-        # Busca o histórico ordenado do mais recente para o mais antigo
         res = supabase.table("treinos").select("*").eq("email", dados.email).order("data_hora", desc=True).execute()
         historico = res.data if res.data else []
         
@@ -262,8 +286,6 @@ def consultar_hoje(dados: ConsultaInput):
             }
             
         ultimo_treino = historico[0]
-        
-        # Calcula os dias desde o último treino
         data_ultimo_obj = datetime.strptime(ultimo_treino['data_hora'][:10], "%Y-%m-%d").date()
         hoje = (datetime.utcnow() - timedelta(hours=3)).date()
         dias_descanso = (hoje - data_ultimo_obj).days
@@ -271,11 +293,9 @@ def consultar_hoje(dados: ConsultaInput):
         feedback = ultimo_treino.get('feedback_treino', '')
         if not feedback: feedback = "Sem feedback"
         
-        # Calcula a média crônica para sugerir a distância ideal
         total_hist = sum(t.get('km_percorridos', 0) for t in historico)
         media_cronica = total_hist / len(historico)
 
-        # A Árvore de Decisão da IA (Regras de Negócio)
         if "Dor" in feedback and dias_descanso < 3:
             status = "🔴 RECUPERAÇÃO ATIVA"
             msg = f"Você relatou DOR no último treino há {dias_descanso} dia(s). O risco de lesão articular é muito alto."
@@ -296,12 +316,7 @@ def consultar_hoje(dados: ConsultaInput):
         return {"status": status, "mensagem": msg, "sugestao": sugestao}
     except Exception as e:
         return {"erro": str(e)}
-    
 
-class DeletarInput(BaseModel):
-    email: str
-
-# 👇 A ÚNICA MUDANÇA: mudamos de .delete para .post
 @app.post("/deletar_ultimo_treino")
 def deletar_ultimo_treino(dados: DeletarInput):
     try:
