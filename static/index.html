@@ -90,61 +90,47 @@
     </style>
 </head>
 <body>
-<div id="telaLoginWrapper" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: flex; align-items: center; justify-content: center; background: linear-gradient(rgba(164, 69, 178, 0.95), rgba(250, 66, 153, 0.95)); padding: 20px; overflow-y: auto;">
-    <div class="main-card" style="margin-top: auto; margin-bottom: auto;">
-        <div class="text-center mb-2">
-            <i class="fas fa-lock fa-2x" style="color: #fa4299;"></i>
-        </div>
-        <h3 class="title" style="font-size: 22px;">Acesso RunIA</h3>
+<div id="formCadastroView" style="display: none;">
+    <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 15px;">Configure seu perfil biométrico uma única vez.</p>
+    
+    <label style="font-size: 11px; color: #888; margin-bottom: 2px; text-transform: uppercase; display: block; margin-left: 5px;">E-mail para acesso</label>
+    <input type="email" id="cadEmailPorta" class="form-control" placeholder="seu@email.com" style="height: 45px;">
 
-        <div id="formLoginView">
-            <input type="email" id="emailPorta" class="form-control" placeholder="Seu E-mail">
-            <input type="password" id="senhaPorta" class="form-control" placeholder="Sua Senha">
-            
-            <button id="btnPorta" onclick="verificarPorta()" class="btn-gradient">ENTRAR NO APP</button>
-            
-            <div class="text-center mt-4">
-                <a href="#" onclick="abrirCadastro(event)" style="color: #888; font-size: 13px; font-weight: bold; text-decoration: none;">Não tem conta? <span style="color: #fa4299;">CRIAR AGORA</span></a>
-            </div>
-        </div>
-
-        <div id="formCadastroView" style="display: none;">
-            <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 15px;">Configure seu perfil biométrico uma única vez.</p>
-            
-            <input type="text" id="cadNomePorta" class="form-control" placeholder="Seu Nickname (Ex: Andriel)" style="height: 45px;">
-            <input type="password" id="cadSenhaPorta" class="form-control" placeholder="Crie uma Senha (mín. 6 letras)" style="height: 45px;">
-            
-            <div class="row g-2 mb-2">
-                <div class="col-6">
-                    <select id="cadIdadePorta" class="form-select" style="height: 45px;">
-                        <option value="" disabled selected>Idade...</option>
-                        <option value="18-24">18-24</option><option value="25-29">25-29</option>
-                        <option value="30-34">30-34</option><option value="35-39">35-39</option>
-                        <option value="40-44">40-44</option><option value="45-49">45-49</option>
-                        <option value="50-54">50-54</option><option value="55-59">55-59</option>
-                        <option value="60+">60 ou +</option>
-                    </select>
-                </div>
-                <div class="col-6">
-                    <select id="cadSexoPorta" class="form-select" style="height: 45px;">
-                        <option value="" disabled selected>Sexo...</option>
-                        <option value="M">Masculino</option><option value="F">Feminino</option>
-                    </select>
-                </div>
-            </div>
-            
-            <select id="cadNivelPorta" class="form-select mb-3" style="height: 45px;">
-                <option value="" disabled selected>Nível atual...</option>
-                <option value="iniciante">Iniciante</option>
-                <option value="avancado">Já corro/treino</option>
+    <label style="font-size: 11px; color: #888; margin-bottom: 2px; text-transform: uppercase; display: block; margin-left: 5px;">Crie uma Senha</label>
+    <input type="password" id="cadSenhaPorta" class="form-control" placeholder="Mínimo 6 caracteres" style="height: 45px;">
+    
+    <label style="font-size: 11px; color: #888; margin-bottom: 2px; text-transform: uppercase; display: block; margin-left: 5px;">Como quer ser chamado?</label>
+    <input type="text" id="cadNomePorta" class="form-control" placeholder="Seu Nickname" style="height: 45px;">
+    
+    <div class="row g-2 mb-2">
+        <div class="col-6">
+            <label style="font-size: 11px; color: #888; margin-bottom: 2px; text-transform: uppercase; display: block; margin-left: 5px;">Faixa Etária</label>
+            <select id="cadIdadePorta" class="form-select" style="height: 45px;">
+                <option value="18-24">18-24</option><option value="25-29">25-29</option>
+                <option value="30-34">30-34</option><option value="35-39">35-39</option>
+                <option value="40-44">40-44</option><option value="45-49">45-49</option>
+                <option value="50-54">50-54</option><option value="55-59">55-59</option>
+                <option value="60+">60 ou +</option>
             </select>
-
-            <button id="btnCadPorta" onclick="salvarCadastroPorta()" class="btn-gradient" style="height: 45px;">FINALIZAR CADASTRO</button>
-            
-            <div class="text-center mt-3">
-                <a href="#" onclick="abrirLogin(event)" style="color: #888; font-size: 13px; font-weight: bold; text-decoration: none;">Já tenho conta. <span style="color: #0284c7;">VOLTAR</span></a>
-            </div>
         </div>
+        <div class="col-6">
+            <label style="font-size: 11px; color: #888; margin-bottom: 2px; text-transform: uppercase; display: block; margin-left: 5px;">Sexo</label>
+            <select id="cadSexoPorta" class="form-select" style="height: 45px;">
+                <option value="M">Masc</option><option value="F">Fem</option>
+            </select>
+        </div>
+    </div>
+    
+    <label style="font-size: 11px; color: #888; margin-bottom: 2px; text-transform: uppercase; display: block; margin-left: 5px;">Nível de Experiência</label>
+    <select id="cadNivelPorta" class="form-select mb-3" style="height: 45px;">
+        <option value="iniciante">Iniciante</option>
+        <option value="avancado">Já corro/treino</option>
+    </select>
+
+    <button id="btnCadPorta" onclick="salvarCadastroPorta()" class="btn-gradient" style="height: 45px;">FINALIZAR CADASTRO</button>
+    
+    <div class="text-center mt-3">
+        <a href="#" onclick="abrirLogin(event)" style="color: #888; font-size: 13px; font-weight: bold; text-decoration: none;">Já tenho conta. <span style="color: #0284c7;">VOLTAR</span></a>
     </div>
 </div>
 
@@ -339,36 +325,42 @@
     }
 
     async function salvarCadastroPorta() {
-        const dados = {
-            email: document.getElementById('emailPorta').value.toLowerCase().trim() || prompt("Confirme seu E-mail para cadastro:"),
-            senha: document.getElementById('cadSenhaPorta').value,
-            nome: document.getElementById('cadNomePorta').value,
-            idade: document.getElementById('cadIdadePorta').value,
-            sexo: document.getElementById('cadSexoPorta').value,
-            nivel: document.getElementById('cadNivelPorta').value
-        };
+    const dados = {
+        email: document.getElementById('cadEmailPorta').value.toLowerCase().trim(),
+        senha: document.getElementById('cadSenhaPorta').value,
+        nome: document.getElementById('cadNomePorta').value,
+        idade: document.getElementById('cadIdadePorta').value,
+        sexo: document.getElementById('cadSexoPorta').value,
+        nivel: document.getElementById('cadNivelPorta').value
+    };
 
-        if (!dados.email || !dados.nome || !dados.idade || !dados.sexo || dados.senha.length < 6) {
-            return alert("Preencha todos os campos e use uma senha de pelo menos 6 caracteres.");
-        }
-
-        const btn = document.getElementById('btnCadPorta');
-        btn.innerText = "SALVANDO..."; btn.disabled = true;
-
-        try {
-            const req = await fetch('/cadastrar_usuario', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(dados) });
-            const res = await req.json();
-
-            if (res.sucesso) {
-                localStorage.setItem('usuario_runia', JSON.stringify(dados));
-                liberarAcesso(dados);
-            } else {
-                alert("Erro: " + res.erro); btn.innerText = "FINALIZAR CADASTRO"; btn.disabled = false;
-            }
-        } catch (e) {
-            alert("Erro ao salvar."); btn.innerText = "FINALIZAR CADASTRO"; btn.disabled = false;
-        }
+    if (!dados.email || !dados.nome || dados.senha.length < 6) {
+        return alert("Preencha todos os campos corretamente. A senha deve ter no mínimo 6 caracteres.");
     }
+
+    const btn = document.getElementById('btnCadPorta');
+    btn.innerText = "SALVANDO..."; btn.disabled = true;
+
+    try {
+        const req = await fetch('/cadastrar_usuario', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(dados) 
+        });
+        const res = await req.json();
+
+        if (res.sucesso) {
+            localStorage.setItem('usuario_runia', JSON.stringify(dados));
+            liberarAcesso(dados);
+        } else {
+            alert("Erro ao cadastrar: " + (res.erro || "Verifique os dados.")); 
+            btn.innerText = "FINALIZAR CADASTRO"; btn.disabled = false;
+        }
+    } catch (e) {
+        alert("Erro de conexão com o servidor."); 
+        btn.innerText = "FINALIZAR CADASTRO"; btn.disabled = false;
+    }
+}
 
     function liberarAcesso(usuario) {
         // 1. Esconde a porta da frente
