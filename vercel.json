@@ -8,6 +8,9 @@
     { "src": "/registrar_feedback", "dest": "/api/index.py" },
     { "src": "/historico_grafico", "dest": "/api/index.py" },
     { "src": "/consultar_hoje", "dest": "/api/index.py" },
+    { "src": "/deletar_ultimo_treino", "dest": "/api/index.py" },
+    { "src": "/verificar_login", "dest": "/api/index.py" },
+    { "src": "/cadastrar_usuario", "dest": "/api/index.py" },
     { "src": "/(.*)", "dest": "/static/index.html" }
   ]
 }
