@@ -142,8 +142,20 @@
                 <option value="avancado">Já corro/treino</option>
             </select>
 
+            <select id="cadNivelPorta" class="form-select mb-2" style="height: 45px;">
+                <option value="" disabled selected>Nível atual...</option>
+                <option value="iniciante">Iniciante</option>
+                <option value="avancado">Já corro/treino</option>
+            </select>
+
+            <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 15px; text-align: left; padding: 5px;">
+                <input type="checkbox" id="termoAcademico" style="margin-top: 3px; cursor: pointer;">
+                <label for="termoAcademico" style="font-size: 10px; color: #666; line-height: 1.3; cursor: pointer;">
+                    <strong>Aviso:</strong> Este é um projeto de pesquisa acadêmica (Mestrado UFPel). Ao me cadastrar, concordo que meus dados de treino sejam armazenados e utilizados exclusivamente para fins de estudo científico.
+                </label>
+            </div>
             <button id="btnCadPorta" onclick="salvarCadastroPorta()" class="btn-gradient" style="height: 45px;">FINALIZAR CADASTRO</button>
-            
+
             <div class="text-center mt-3">
                 <a href="#" onclick="abrirLogin(event)" style="color: #888; font-size: 13px; font-weight: bold; text-decoration: none;">Já tenho conta. <span style="color: #0284c7;">VOLTAR</span></a>
             </div>
@@ -342,9 +354,15 @@
         }
     }
 
-   async function salvarCadastroPorta() {
+async function salvarCadastroPorta() {
+        // Verifica se a pessoa marcou o termo acadêmico
+        const aceitouTermos = document.getElementById('termoAcademico').checked;
+        if (!aceitouTermos) {
+            return alert("⚠️ Para participar, você precisa concordar com os termos da pesquisa acadêmica.");
+        }
+
         const dados = {
-            email: document.getElementById('cadEmailPorta').value.toLowerCase().trim(), // 👈 Agora lê do campo de cadastro
+            email: document.getElementById('cadEmailPorta').value.toLowerCase().trim(),
             senha: document.getElementById('cadSenhaPorta').value,
             nome: document.getElementById('cadNomePorta').value,
             idade: document.getElementById('cadIdadePorta').value,
