@@ -43,7 +43,6 @@ class ConsultaInput(BaseModel):
 class DeletarInput(BaseModel):
     email: str
 
-# 👇 NOVOS MODELOS DE AUTENTICAÇÃO 👇
 class LoginInput(BaseModel):
     email: str
     senha: str
@@ -55,6 +54,30 @@ class CadastroInput(BaseModel):
     idade: str
     sexo: str
     nivel: str
+
+
+# =====================================================================
+# FUNÇÃO DE COLD START (Dicas para quem não tem histórico)
+# =====================================================================
+def gerar_dica_cold_start(nivel: str, idade_str: str) -> str:
+    idade_base = 30
+    try:
+        idade_base = int(idade_str.split('-')[0].replace('+', '').strip())
+    except:
+        pass
+
+    if nivel == "iniciante":
+        if idade_base >= 50:
+            return "🏃 Missão de hoje: 20 minutos de caminhada contínua. Foque na postura e não se preocupe com o ritmo!"
+        elif idade_base >= 40:
+            return "🏃 Missão de hoje (Caminhada/Trote): 2 min caminhando + 1 min trotando leve. Repita 5 vezes (Total: 15 min)."
+        else:
+            return "🏃 Missão de hoje: 2 min caminhando + 2 min trotando. Repita 5 vezes (Total: 20 min)."
+    else:
+        if idade_base >= 40:
+            return "🔥 Faça um treino leve de 3 a 5 km num ritmo em que consiga conversar (Esforço 5/10)."
+        else:
+            return "🔥 Treino livre! Corra 30 a 40 minutos em ritmo confortável para o sistema calcular a sua Carga Crônica."
 
 
 # =====================================================================
@@ -74,7 +97,6 @@ def verificar_login(dados: LoginInput):
                 
         return {"existe": False}
     except Exception as e:
-        # Se algo der errado (banco, conexão, coluna faltando), a IA conta-nos o motivo exato!
         raise HTTPException(status_code=500, detail=f"Erro interno no banco: {str(e)}")
 
 @app.post("/cadastrar_usuario")
@@ -94,7 +116,7 @@ def cadastrar_usuario(dados: CadastroInput):
 
 
 # =====================================================================
-# CÉREBRO DA IA (Intacto e Seguro)
+# CÉREBRO DA IA (Regras e Prescrição)
 # =====================================================================
 def gerar_prescricao(treino, historico):
     if treino.tipo_atividade == "caminhada":
@@ -178,6 +200,7 @@ def gerar_prescricao(treino, historico):
         "acao": acao,
         "proximo_treino": texto_final
     }
+
 
 # =====================================================================
 # ROTAS DE TREINO E HISTÓRICO
@@ -281,16 +304,29 @@ def historico_grafico(dados: HistoricoInput):
 @app.post("/consultar_hoje")
 def consultar_hoje(dados: ConsultaInput):
     try:
+        # 1. Puxa os dados do usuário para saber a idade e o nível
+        res_usuario = supabase.table("usuarios").select("idade, nivel").eq("email", dados.email.lower()).execute()
+        
+        nivel_usuario = "iniciante"
+        idade_usuario = "30-39"
+        if res_usuario.data:
+            nivel_usuario = res_usuario.data[0].get("nivel", "iniciante")
+            idade_usuario = res_usuario.data[0].get("idade", "30-39")
+
+        # 2. Busca o histórico de treinos
         res = supabase.table("treinos").select("*").eq("email", dados.email).order("data_hora", desc=True).execute()
         historico = res.data if res.data else []
         
+        # 3. REGRA DO COLD START (Zero treinos no histórico)
         if not historico:
+            dica_personalizada = gerar_dica_cold_start(nivel_usuario, idade_usuario)
             return {
                 "status": "⚪ BEM-VINDO(A)", 
-                "mensagem": "Não encontramos histórico de treinos para este e-mail.", 
-                "sugestao": "Faça o seu primeiro treino leve de reconhecimento e registre os dados aqui!"
+                "mensagem": "Não encontramos histórico de treinos. Vamos construir a sua base!", 
+                "sugestao": dica_personalizada
             }
             
+        # 4. REGRAS DA IA PARA QUEM JÁ TEM HISTÓRICO
         ultimo_treino = historico[0]
         data_ultimo_obj = datetime.strptime(ultimo_treino['data_hora'][:10], "%Y-%m-%d").date()
         hoje = (datetime.utcnow() - timedelta(hours=3)).date()
